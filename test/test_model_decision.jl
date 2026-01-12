@@ -214,43 +214,6 @@ end
     end
 end
 
-#= TODO: PNM
-@testset "Test Locational Marginal Prices between DC lossless with PowerModels vs PTDFPowerModel" begin
-    networks = [DCPPowerModel, PTDFPowerModel]
-    sys = PSB.build_system(PSITestSystems, "c_sys5")
-    ptdf = PTDF(sys)
-    # These are the duals of interest for the test
-    dual_constraint = [[NodalBalanceActiveConstraint], [CopperPlateBalanceConstraint]]
-    LMPs = []
-    for (ix, network) in enumerate(networks)
-        template = get_template_dispatch_with_network(
-            NetworkModel(network; PTDF_matrix = ptdf, duals = dual_constraint[ix]),
-        )
-        if network == PTDFPowerModel
-            set_device_model!(
-                template,
-                DeviceModel(PSY.Line, PSI.StaticBranch; duals = [NetworkFlowConstraint]),
-            )
-        end
-        model = DecisionModel(template, sys; optimizer = HiGHS_optimizer)
-        @test build!(model; output_dir = mktempdir(; cleanup = true)) ==
-              PSI.ModelBuildStatus.BUILT
-        @test solve!(model) == PSI.RunStatus.SUCCESSFULLY_FINALIZED
-        res = OptimizationProblemResults(model)
-
-        # These tests require results to be working
-        if network == PTDFPowerModel
-            push!(LMPs, abs.(psi_ptdf_lmps(res, ptdf)))
-        else
-            duals = read_dual(res, NodalBalanceActiveConstraint, ACBus, table_format = TableFormat.WIDE)
-            duals = abs.(duals[:, propertynames(duals) .!== :DateTime])
-            push!(LMPs, duals[!, sort(propertynames(duals))])
-        end
-    end
-    @test isapprox(LMPs[1], LMPs[2], atol = 100.0)
-end
-=#
-
 @testset "Test OptimizationProblemResults interfaces" begin
     sys = PSB.build_system(PSITestSystems, "c_sys5_re")
     template = get_template_dispatch_with_network(
