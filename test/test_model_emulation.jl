@@ -272,7 +272,7 @@ end
 
     exp_file =
         joinpath(path, "results", "variables", "ActivePowerVariable__ThermalStandard.csv")
-    var4 = PSI.read_dataframe(exp_file)
+    var4 = read_dataframe(exp_file)
     # Manually Multiply by the base power var1_a has natural units and export writes directly from the solver
     @test var1_a.value == var4.value .* 100.0
 end

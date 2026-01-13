@@ -8,13 +8,6 @@ function read_json(filename::AbstractString)
 end
 
 """
-Return a DataFrame from a CSV file.
-"""
-function read_dataframe(filename::AbstractString)
-    return CSV.read(filename, DataFrames.DataFrame)
-end
-
-"""
 Return the key for the given value
 """
 function find_key_with_value(d, value)

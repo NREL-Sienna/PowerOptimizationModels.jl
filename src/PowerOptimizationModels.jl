@@ -421,7 +421,6 @@ import TimeSeries
 import DataFrames
 import DataFrames: DataFrame, DataFrameRow, Not, innerjoin
 import DataFramesMeta: @chain, @orderby, @rename, @select, @subset, @transform
-import CSV
 import HDF5
 import PrettyTables
 
