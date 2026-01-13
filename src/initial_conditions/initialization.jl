@@ -18,7 +18,7 @@ function get_initial_conditions_template(model::OperationModel, number_of_steps:
         deepcopy(get_network_reduction(get_network_model(model.template)))
     network_model.subnetworks = get_subnetworks(get_network_model(model.template))
     # Initialization does not support PowerFlow evaluation
-    network_model.power_flow_evaluation = Vector{PFS.PowerFlowEvaluationModel}[]
+    network_model.power_flow_evaluation = Any[]
     bus_area_map = get_bus_area_map(get_network_model(model.template))
 
     if !isempty(bus_area_map)

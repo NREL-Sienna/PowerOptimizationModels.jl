@@ -11,9 +11,17 @@ function _check_pm_formulation(::Type{T}) where {T <: PM.AbstractPowerModel}
     end
 end
 
-_maybe_flatten_pfem(pfem::Vector{PFS.PowerFlowEvaluationModel}) = pfem
-_maybe_flatten_pfem(pfem::PFS.PowerFlowEvaluationModel) =
-    PFS.flatten_power_flow_evaluation_model(pfem)
+# Conditional PowerFlows support
+_maybe_flatten_pfem(pfem::Vector{<:Any}) = pfem
+function _maybe_flatten_pfem(pfem)
+    # Check if PowerFlows extension is loaded
+    if isdefined(PFS, :flatten_power_flow_evaluation_model)
+        return PFS.flatten_power_flow_evaluation_model(pfem)
+    else
+        # If PowerFlows is not loaded, return as-is in a vector
+        return [pfem]
+    end
+end
 
 """
 Establishes the NetworkModel for a given PowerModels formulation type.
@@ -64,7 +72,7 @@ mutable struct NetworkModel{T <: PM.AbstractPowerModel}
     network_reduction::PNM.NetworkReductionData
     reduce_radial_branches::Bool
     reduce_degree_two_branches::Bool
-    power_flow_evaluation::Vector{PFS.PowerFlowEvaluationModel}
+    power_flow_evaluation::Vector{<:Any}  # Vector of PowerFlowEvaluationModel when extension loaded
     subsystem::Union{Nothing, String}
     hvdc_network_model::Union{Nothing, AbstractHVDCNetworkModel}
     modeled_branch_types::Vector{DataType}
@@ -79,10 +87,7 @@ mutable struct NetworkModel{T <: PM.AbstractPowerModel}
         reduce_degree_two_branches = false,
         subnetworks = Dict{Int, Set{Int}}(),
         duals = Vector{DataType}(),
-        power_flow_evaluation::Union{
-            PFS.PowerFlowEvaluationModel,
-            Vector{PFS.PowerFlowEvaluationModel},
-        } = PFS.PowerFlowEvaluationModel[],
+        power_flow_evaluation = Any[],
         hvdc_network_model = nothing,
     ) where {T <: PM.AbstractPowerModel}
         _check_pm_formulation(T)

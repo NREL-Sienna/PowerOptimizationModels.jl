@@ -336,7 +336,6 @@ import LinearAlgebra
 import JSON3
 import PowerSystems
 import InfrastructureSystems
-import PowerFlows
 import PowerNetworkMatrices
 import PowerNetworkMatrices: PTDF, VirtualPTDF, LODF, VirtualLODF
 export PTDF
@@ -449,8 +448,20 @@ const MOI = MathOptInterface
 const MOIU = MathOptInterface.Utilities
 const MOPFM = MOI.FileFormats.Model
 const PNM = PowerNetworkMatrices
-const PFS = PowerFlows
 const TS = TimeSeries
+
+# Conditional PowerFlows support
+# Create a module stub when PowerFlows is not loaded
+module PFSStub
+abstract type PowerFlowContainer end
+abstract type PowerFlowEvaluationModel end
+struct SystemPowerFlowContainer <: PowerFlowContainer end
+struct PowerFlowData <: PowerFlowContainer end
+end
+
+# PFS will be defined by the extension when PowerFlows is loaded,
+# otherwise it points to the stub
+const PFS = PFSStub
 
 # Import parameter types from InfrastructureSystems.Optimization
 import InfrastructureSystems.Optimization: ParameterType, TimeSeriesParameter
