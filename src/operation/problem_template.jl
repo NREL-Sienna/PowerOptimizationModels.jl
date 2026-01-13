@@ -46,7 +46,7 @@ end
 
 ProblemTemplate(::Type{T}) where {T <: PM.AbstractPowerModel} =
     ProblemTemplate(NetworkModel(T))
-ProblemTemplate() = ProblemTemplate(CopperPlatePowerModel)
+
 
 get_device_models(template::ProblemTemplate) = template.devices
 get_branch_models(template::ProblemTemplate) = template.branches
