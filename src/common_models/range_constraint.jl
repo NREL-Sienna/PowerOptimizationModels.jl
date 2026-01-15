@@ -18,6 +18,21 @@ function get_startup_shutdown(
     nothing
 end
 
+"""
+    get_min_max_limits(device, ::Type{<:ConstraintType}, ::Type{<:AbstractDeviceFormulation})
+
+Return the (min, max) limits for a device given a constraint type and formulation.
+This function must be implemented by downstream packages (e.g., PowerSimulations.jl)
+for specific device types and formulations.
+
+Returns a NamedTuple with fields `min` and `max`.
+"""
+function get_min_max_limits(device, T::Type{<:ConstraintType}, W::Type{<:AbstractDeviceFormulation})
+    error(
+        "get_min_max_limits not implemented for device $(typeof(device)), constraint type $T, formulation type $W"
+    )
+end
+
 @doc raw"""
 Constructs min/max range constraint from device variable.
 
@@ -58,6 +73,7 @@ function add_range_constraints!(
     return
 end
 
+# U is LBExpression: call _add_lower_bound
 function add_range_constraints!(
     container::OptimizationContainer,
     ::Type{T},
@@ -77,6 +93,7 @@ function add_range_constraints!(
     return
 end
 
+# U is UBExpression: call _add_upper_bound
 function add_range_constraints!(
     container::OptimizationContainer,
     ::Type{T},
@@ -118,6 +135,7 @@ function _add_lower_bound_range_constraints_impl!(
     return
 end
 
+# almost identical, except meta is "ub" and constraint is <= limits.max
 function _add_upper_bound_range_constraints_impl!(
     container::OptimizationContainer,
     ::Type{T},
@@ -221,6 +239,7 @@ function add_semicontinuous_range_constraints!(
     return
 end
 
+# again, almost identical, except U is UBExpression and call _add_upper_bound
 function add_semicontinuous_range_constraints!(
     container::OptimizationContainer,
     ::Type{T},
@@ -246,6 +265,7 @@ function add_semicontinuous_range_constraints!(
     return
 end
 
+# non-thermal lower bound
 function _add_semicontinuous_lower_bound_range_constraints_impl!(
     container::OptimizationContainer,
     ::Type{T},
@@ -271,6 +291,7 @@ function _add_semicontinuous_lower_bound_range_constraints_impl!(
     return
 end
 
+# ThermalGen lower bound: skip on variable if must_run is true.
 function _add_semicontinuous_lower_bound_range_constraints_impl!(
     container::OptimizationContainer,
     ::Type{T},
@@ -305,6 +326,8 @@ function _add_semicontinuous_lower_bound_range_constraints_impl!(
     return
 end
 
+# thermal upper bound: skip on variable if must_run is true.
+# identical to lower bound, except meta is "ub" and constraint is <= limits.max
 function _add_semicontinuous_upper_bound_range_constraints_impl!(
     container::OptimizationContainer,
     ::Type{T},
@@ -339,6 +362,8 @@ function _add_semicontinuous_upper_bound_range_constraints_impl!(
     return
 end
 
+# non-thermal upper bound
+# identical to lower bound, except meta is "ub" and constraint is <= limits.max
 function _add_semicontinuous_upper_bound_range_constraints_impl!(
     container::OptimizationContainer,
     ::Type{T},
@@ -399,6 +424,7 @@ function add_reserve_range_constraints!(
     return
 end
 
+# U is ExpressionType (vs VariableType above): check _add_ub and _add_lb.
 function add_reserve_range_constraints!(
     container::OptimizationContainer,
     ::Type{T},
@@ -421,6 +447,7 @@ function add_reserve_range_constraints!(
     return
 end
 
+# InputActivePowerVariableLimitsConstraint lower bound
 function _add_reserve_lower_bound_range_constraints!(
     container::OptimizationContainer,
     ::Type{T},
@@ -455,6 +482,8 @@ function _add_reserve_lower_bound_range_constraints!(
     return
 end
 
+# InputActivePowerVariableLimitsConstraint upper bound
+# only differences: meta = "ub" and <= max * (1 - varbin) instead of >= min * (1 - varbin)
 function _add_reserve_upper_bound_range_constraints!(
     container::OptimizationContainer,
     ::Type{T},
@@ -571,6 +600,12 @@ function add_reserve_range_constraints!(
     return
 end
 
+# similar to InputActivePowerVariableLimitsConstraint, except:
+# (1) additional possibilities for T
+# (2) additional call to add_constraints_container!
+# (3) use min/max * varbin, instead of min/max * (1 - varbin)
+
+# lower bound
 function _add_reserve_lower_bound_range_constraints!(
     container::OptimizationContainer,
     ::Type{T},
@@ -607,6 +642,7 @@ function _add_reserve_lower_bound_range_constraints!(
     return
 end
 
+# upper bound (again, only minor differences from lower bound)
 function _add_reserve_upper_bound_range_constraints!(
     container::OptimizationContainer,
     ::Type{T},
@@ -643,6 +679,7 @@ function _add_reserve_upper_bound_range_constraints!(
     return
 end
 
+# U is ExpressionType
 function add_parameterized_lower_bound_range_constraints(
     container::OptimizationContainer,
     ::Type{T},
@@ -671,6 +708,7 @@ function add_parameterized_lower_bound_range_constraints(
     return
 end
 
+# U is VariableType: call get_variable instead of get_expression
 function add_parameterized_lower_bound_range_constraints(
     container::OptimizationContainer,
     ::Type{T},
@@ -788,6 +826,7 @@ function _add_parameterized_lower_bound_range_constraints_impl!(
     return
 end
 
+# U is ExpressionType
 function add_parameterized_upper_bound_range_constraints(
     container::OptimizationContainer,
     ::Type{T},
@@ -816,6 +855,7 @@ function add_parameterized_upper_bound_range_constraints(
     return
 end
 
+# U is VariableType
 function add_parameterized_upper_bound_range_constraints(
     container::OptimizationContainer,
     ::Type{T},
@@ -844,6 +884,7 @@ function add_parameterized_upper_bound_range_constraints(
     return
 end
 
+# AvailableStatusParameter version
 # This function is re-used in SemiContinuousFeedforward
 function upper_bound_range_with_parameter!(
     container::OptimizationContainer,
@@ -868,6 +909,7 @@ function upper_bound_range_with_parameter!(
     return
 end
 
+# non-{TimeSeriesParameter/AvailableStatusParameter} version
 # This function is re-used in SemiContinuousFeedforward
 function upper_bound_range_with_parameter!(
     container::OptimizationContainer,
@@ -891,6 +933,7 @@ function upper_bound_range_with_parameter!(
     return
 end
 
+# TimeSeriesParameter version
 function upper_bound_range_with_parameter!(
     container::OptimizationContainer,
     constraint_container::JuMPConstraintArray,
@@ -919,6 +962,7 @@ function upper_bound_range_with_parameter!(
     return
 end
 
+# TimeSeriesParameter version
 function _add_parameterized_upper_bound_range_constraints_impl!(
     container::OptimizationContainer,
     ::Type{T},
@@ -949,6 +993,7 @@ function _add_parameterized_upper_bound_range_constraints_impl!(
     return
 end
 
+# non-TimeSeriesParameter version
 function _add_parameterized_upper_bound_range_constraints_impl!(
     container::OptimizationContainer,
     ::Type{T},
