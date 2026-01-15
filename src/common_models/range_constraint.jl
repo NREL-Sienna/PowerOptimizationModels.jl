@@ -18,6 +18,25 @@ function get_startup_shutdown(
     nothing
 end
 
+"""
+    get_min_max_limits(device, ::Type{<:ConstraintType}, ::Type{<:AbstractDeviceFormulation})
+
+Return the (min, max) limits for a device given a constraint type and formulation.
+This function must be implemented by downstream packages (e.g., PowerSimulations.jl)
+for specific device types and formulations.
+
+Returns a NamedTuple with fields `min` and `max`.
+"""
+function get_min_max_limits(
+    device,
+    T::Type{<:ConstraintType},
+    W::Type{<:AbstractDeviceFormulation},
+)
+    error(
+        "get_min_max_limits not implemented for device $(typeof(device)), constraint type $T, formulation type $W",
+    )
+end
+
 @doc raw"""
 Constructs min/max range constraint from device variable.
 
