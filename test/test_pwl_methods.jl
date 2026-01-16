@@ -19,12 +19,36 @@ struct TestBinaryInterpolationVariable <: PSI.BinaryInterpolationVariableType en
 
 # Define required methods for test types
 # Note: Second arg is ::Type{<:PSY.Component} (a type), third arg is a formulation instance
-PSI.get_variable_binary(::TestInterpolationVariable, ::Type{<:PSY.Component}, ::PSI.AbstractDeviceFormulation) = false
-PSI.get_variable_binary(::TestBinaryInterpolationVariable, ::Type{<:PSY.Component}, ::PSI.AbstractDeviceFormulation) = true
-PSI.get_variable_upper_bound(::TestInterpolationVariable, ::PSY.Component, ::PSI.AbstractDeviceFormulation) = 1.0
-PSI.get_variable_lower_bound(::TestInterpolationVariable, ::PSY.Component, ::PSI.AbstractDeviceFormulation) = 0.0
-PSI.get_variable_upper_bound(::TestBinaryInterpolationVariable, ::PSY.Component, ::PSI.AbstractDeviceFormulation) = nothing
-PSI.get_variable_lower_bound(::TestBinaryInterpolationVariable, ::PSY.Component, ::PSI.AbstractDeviceFormulation) = nothing
+PSI.get_variable_binary(
+    ::TestInterpolationVariable,
+    ::Type{<:PSY.Component},
+    ::PSI.AbstractDeviceFormulation,
+) = false
+PSI.get_variable_binary(
+    ::TestBinaryInterpolationVariable,
+    ::Type{<:PSY.Component},
+    ::PSI.AbstractDeviceFormulation,
+) = true
+PSI.get_variable_upper_bound(
+    ::TestInterpolationVariable,
+    ::PSY.Component,
+    ::PSI.AbstractDeviceFormulation,
+) = 1.0
+PSI.get_variable_lower_bound(
+    ::TestInterpolationVariable,
+    ::PSY.Component,
+    ::PSI.AbstractDeviceFormulation,
+) = 0.0
+PSI.get_variable_upper_bound(
+    ::TestBinaryInterpolationVariable,
+    ::PSY.Component,
+    ::PSI.AbstractDeviceFormulation,
+) = nothing
+PSI.get_variable_lower_bound(
+    ::TestBinaryInterpolationVariable,
+    ::PSY.Component,
+    ::PSI.AbstractDeviceFormulation,
+) = nothing
 
 # Test formulation type
 struct TestPWLFormulation <: PSI.AbstractDeviceFormulation end
@@ -33,31 +57,31 @@ struct TestPWLFormulation <: PSI.AbstractDeviceFormulation end
 # Helper functions
 #==============================================================================#
 
-function make_test_thermal(name::String; min_power=10.0, max_power=100.0)
+function make_test_thermal(name::String; min_power = 10.0, max_power = 100.0)
     bus = PSY.ACBus(;
-        number=1,
-        name="bus1",
-        bustype=PSY.ACBusTypes.PV,
-        angle=0.0,
-        magnitude=1.0,
-        voltage_limits=(min=0.9, max=1.1),
-        base_voltage=230.0,
-        available=true,
+        number = 1,
+        name = "bus1",
+        bustype = PSY.ACBusTypes.PV,
+        angle = 0.0,
+        magnitude = 1.0,
+        voltage_limits = (min = 0.9, max = 1.1),
+        base_voltage = 230.0,
+        available = true,
     )
     return PSY.ThermalStandard(;
-        name=name,
-        available=true,
-        status=true,
-        bus=bus,
-        active_power=50.0,
-        reactive_power=0.0,
-        rating=max_power,
-        active_power_limits=(min=min_power, max=max_power),
-        reactive_power_limits=(min=-50.0, max=50.0),
-        ramp_limits=(up=10.0, down=10.0),
-        time_limits=(up=2.0, down=2.0),
-        operation_cost=PSY.ThermalGenerationCost(nothing),
-        base_power=100.0,
+        name = name,
+        available = true,
+        status = true,
+        bus = bus,
+        active_power = 50.0,
+        reactive_power = 0.0,
+        rating = max_power,
+        active_power_limits = (min = min_power, max = max_power),
+        reactive_power_limits = (min = -50.0, max = 50.0),
+        ramp_limits = (up = 10.0, down = 10.0),
+        time_limits = (up = 2.0, down = 2.0),
+        operation_cost = PSY.ThermalGenerationCost(nothing),
+        base_power = 100.0,
     )
 end
 
@@ -65,9 +89,9 @@ function setup_pwl_test_container(time_steps::UnitRange{Int})
     sys = PSY.System(100.0)
     settings = PSI.Settings(
         sys;
-        horizon=Dates.Hour(length(time_steps)),
-        resolution=Dates.Hour(1),
-        time_series_cache_size=0,
+        horizon = Dates.Hour(length(time_steps)),
+        resolution = Dates.Hour(1),
+        time_series_cache_size = 0,
     )
     container = PSI.OptimizationContainer(sys, settings, JuMP.Model(), PSY.Deterministic)
     PSI.set_time_steps!(container, time_steps)
@@ -79,7 +103,8 @@ Test breakpoint generation and return the breakpoints for further assertions.
 Checks common invariants: correct count, domain boundaries.
 """
 function test_breakpoints(f, min_val, max_val, num_segments)
-    x_bkpts, y_bkpts = PSI._get_breakpoints_for_pwl_function(min_val, max_val, f; num_segments)
+    x_bkpts, y_bkpts =
+        PSI._get_breakpoints_for_pwl_function(min_val, max_val, f; num_segments)
     expected_count = num_segments + 1
 
     @test length(x_bkpts) == expected_count
@@ -97,7 +122,13 @@ function setup_and_add_pwl_variables(var_type, devices, time_steps, num_segments
     container = setup_pwl_test_container(time_steps)
     model = PSI.DeviceModel(PSY.ThermalStandard, TestPWLFormulation)
 
-    PSI.add_sparse_pwl_interpolation_variables!(container, var_type, devices, model, num_segments)
+    PSI.add_sparse_pwl_interpolation_variables!(
+        container,
+        var_type,
+        devices,
+        model,
+        num_segments,
+    )
 
     var_container = PSI.get_variable(container, var_type, PSY.ThermalStandard)
     jump_model = PSI.get_jump_model(container)
@@ -108,8 +139,9 @@ end
 """
 Verify that all expected PWL variables exist and have correct properties.
 """
-function verify_pwl_variables(var_container, jump_model, device_names, segment_range, time_steps;
-                              expect_binary, expected_lb=nothing, expected_ub=nothing)
+function verify_pwl_variables(var_container, jump_model, device_names, segment_range,
+    time_steps;
+    expect_binary, expected_lb = nothing, expected_ub = nothing)
     for name in device_names
         for i in segment_range
             for t in time_steps
@@ -185,14 +217,14 @@ end
             devices = [make_test_thermal("gen1"), make_test_thermal("gen2")]
 
             setup = setup_and_add_pwl_variables(
-                TestInterpolationVariable(), devices, time_steps, num_segments
+                TestInterpolationVariable(), devices, time_steps, num_segments,
             )
             @test !isempty(setup.var_container)
 
             verify_pwl_variables(
                 setup.var_container, setup.jump_model,
                 PSY.get_name.(devices), 1:num_segments, time_steps;
-                expect_binary=false, expected_lb=0.0, expected_ub=1.0
+                expect_binary = false, expected_lb = 0.0, expected_ub = 1.0,
             )
         end
 
@@ -202,7 +234,7 @@ end
             devices = [make_test_thermal("gen1")]
 
             setup = setup_and_add_pwl_variables(
-                TestBinaryInterpolationVariable(), devices, time_steps, num_segments
+                TestBinaryInterpolationVariable(), devices, time_steps, num_segments,
             )
             @test !isempty(setup.var_container)
 
@@ -210,7 +242,7 @@ end
             verify_pwl_variables(
                 setup.var_container, setup.jump_model,
                 ["gen1"], 1:(num_segments - 1), time_steps;
-                expect_binary=true
+                expect_binary = true,
             )
 
             # Should NOT have num_segments-th variable
@@ -223,7 +255,7 @@ end
             devices = [make_test_thermal("gen$i") for i in 1:3]
 
             setup = setup_and_add_pwl_variables(
-                TestInterpolationVariable(), devices, time_steps, num_segments
+                TestInterpolationVariable(), devices, time_steps, num_segments,
             )
 
             for name in PSY.get_name.(devices)
