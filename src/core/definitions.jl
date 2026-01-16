@@ -28,6 +28,8 @@ abstract type AbstractAffectFeedforward end
 # Variables that subtype this use sparse arrays instead of dense arrays
 # This is used for piecewise linear variables and other sparse formulations
 abstract type SparseVariableType <: ISOPT.VariableType end
+abstract type InterpolationVariableType <: SparseVariableType end
+abstract type BinaryInterpolationVariableType <: SparseVariableType end
 
 #################################################################################
 # Simulation Information Type
