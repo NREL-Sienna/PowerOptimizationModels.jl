@@ -68,7 +68,7 @@ Adds to the cost function cost terms for sum of variables with common factor to 
 
 # Arguments
 
-  - container::OptimizationContainer : the optimization_container model built in PowerOptimizationModels
+  - container::OptimizationContainer : the optimization_container model built in InfrastructureOptimizationModels
   - var_key::VariableKey: The variable name
   - component_name::String: The component_name of the variable container
   - cost_component::PSY.CostCurve{PSY.LinearCurve} : container for cost to be associated with variable
@@ -128,7 +128,7 @@ Adds to the cost function cost terms for sum of variables with common factor to 
 
 # Arguments
 
-  - container::OptimizationContainer : the optimization_container model built in PowerOptimizationModels
+  - container::OptimizationContainer : the optimization_container model built in InfrastructureOptimizationModels
   - var_key::VariableKey: The variable name
   - component_name::String: The component_name of the variable container
   - cost_component::PSY.FuelCurve{PSY.LinearCurve} : container for cost to be associated with variable

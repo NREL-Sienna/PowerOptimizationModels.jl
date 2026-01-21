@@ -1,6 +1,6 @@
 using Documenter
 import DataStructures: OrderedDict
-using PowerOptimizationModels
+using InfrastructureOptimizationModels
 
 pages = OrderedDict(
     "Welcome Page" => "index.md",
@@ -16,18 +16,18 @@ pages = OrderedDict(
 )
 
 makedocs(
-    modules = [PowerOptimizationModels],
+    modules = [InfrastructureOptimizationModels],
     format = Documenter.HTML(
         prettyurls = haskey(ENV, "GITHUB_ACTIONS"),
         size_threshold = nothing,),
-    sitename = "github.com/NREL-Sienna/PowerOptimizationModels.jl",
+    sitename = "github.com/NREL-Sienna/InfrastructureOptimizationModels.jl",
     authors = "NREL-Sienna",
     pages = Any[p for p in pages],
     draft = false,
 )
 
 deploydocs(
-    repo="github.com/NREL-Sienna/PowerOptimizationModels.jl",
+    repo="github.com/NREL-Sienna/InfrastructureOptimizationModels.jl",
     target="build",
     branch="gh-pages",
     devbranch="main",

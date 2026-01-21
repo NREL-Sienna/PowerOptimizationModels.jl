@@ -9,8 +9,8 @@ Abstract type for Decision Problems
 
 # Example
 
-import PowerOptimizationModels
-const POM = PowerOptimizationModels
+import InfrastructureOptimizationModels
+const POM = InfrastructureOptimizationModels
 struct MyCustomProblem <: POM.DecisionProblem
 """
 abstract type DecisionProblem end
@@ -20,8 +20,8 @@ Abstract type for Emulation Problems
 
 # Example
 
-import PowerOptimizationModels
-const POM = PowerOptimizationModels
+import InfrastructureOptimizationModels
+const POM = InfrastructureOptimizationModels
 struct MyCustomEmulator <: POM.EmulationProblem
 """
 abstract type EmulationProblem end

@@ -1,6 +1,6 @@
 # Public API Reference
 
 ```@autodocs
-Modules = [PowerOptimizationModels]
+Modules = [InfrastructureOptimizationModels]
 Public = true
 ```

@@ -1,6 +1,6 @@
 # Internal API
 
 ```@autodocs
-Modules = [PowerOptimizationModels]
+Modules = [InfrastructureOptimizationModels]
 Public = false
 ```

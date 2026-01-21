@@ -11,7 +11,7 @@ using Dates
 
 # Define aliases if not already defined by test harness
 if !@isdefined(PSI)
-    const PSI = PowerOptimizationModels
+    const PSI = InfrastructureOptimizationModels
 end
 if !@isdefined(PSY)
     using PowerSystems

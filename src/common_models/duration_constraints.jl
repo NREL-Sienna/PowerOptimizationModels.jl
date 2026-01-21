@@ -29,7 +29,7 @@ for i in the set of time steps.
 
 
 # Arguments
-* container::OptimizationContainer : the optimization_container model built in PowerOptimizationModels
+* container::OptimizationContainer : the optimization_container model built in InfrastructureOptimizationModels
 * duration_data::Vector{UpDown} : gives how many time steps variable needs to be up or down
 * initial_duration::Matrix{InitialCondition} : gives initial conditions for up (column 1) and down (column 2)
 * cons_name::Symbol : name of the constraint
@@ -142,7 +142,7 @@ for i in the set of time steps.
 
 
 # Arguments
-* container::OptimizationContainer : the optimization_container model built in PowerOptimizationModels
+* container::OptimizationContainer : the optimization_container model built in InfrastructureOptimizationModels
 * duration_data::Vector{UpDown} : gives how many time steps variable needs to be up or down
 * initial_duration::Matrix{InitialCondition} : gives initial conditions for up (column 1) and down (column 2)
 * cons_name::Symbol : name of the constraint
@@ -245,7 +245,7 @@ for i in the set of time steps. Otherwise:
 for i in the set of time steps.
 
 # Arguments
-* container::OptimizationContainer : the optimization_container model built in PowerOptimizationModels
+* container::OptimizationContainer : the optimization_container model built in InfrastructureOptimizationModels
 * duration_data::Vector{UpDown} : gives how many time steps variable needs to be up or down
 * initial_duration_on::Vector{InitialCondition} : gives initial number of time steps variable is up
 * initial_duration_off::Vector{InitialCondition} : gives initial number of time steps variable is down
@@ -369,7 +369,7 @@ for i in the set of time steps.
 
 
 # Arguments
-* container::OptimizationContainer : the optimization_container model built in PowerOptimizationModels
+* container::OptimizationContainer : the optimization_container model built in InfrastructureOptimizationModels
 * duration_data::Vector{UpDown} : gives how many time steps variable needs to be up or down
 * initial_duration::Matrix{InitialCondition} : gives initial conditions for up (column 1) and down (column 2)
 * cons_name::Symbol : name of the constraint

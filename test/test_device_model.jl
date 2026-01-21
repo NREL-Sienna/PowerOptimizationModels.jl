@@ -5,11 +5,11 @@ Uses TestDeviceFormulation from mocks/mock_components.jl
 
 using PowerSystems
 using Test
-using PowerOptimizationModels
+using InfrastructureOptimizationModels
 
 # Define aliases if not already defined (mock_components.jl defines PSI)
 if !@isdefined(PSI)
-    const PSI = PowerOptimizationModels
+    const PSI = InfrastructureOptimizationModels
 end
 if !@isdefined(PSY)
     const PSY = PowerSystems

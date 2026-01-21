@@ -129,7 +129,7 @@ linear cost term `sum(variable)*cost_data[2]`
 
 # Arguments
 
-* container::OptimizationContainer : the optimization_container model built in PowerOptimizationModels
+* container::OptimizationContainer : the optimization_container model built in InfrastructureOptimizationModels
 * var_key::VariableKey: The variable name
 * component_name::String: The component_name of the variable container
 * cost_component::PSY.CostCurve{PSY.QuadraticCurve} : container for quadratic factors
@@ -237,7 +237,7 @@ linear cost term `sum(variable)*cost_data[2]`
 
 # Arguments
 
-* container::OptimizationContainer : the optimization_container model built in PowerOptimizationModels
+* container::OptimizationContainer : the optimization_container model built in InfrastructureOptimizationModels
 * var_key::VariableKey: The variable name
 * component_name::String: The component_name of the variable container
 * cost_component::PSY.FuelCurve{PSY.QuadraticCurve} : container for quadratic factors

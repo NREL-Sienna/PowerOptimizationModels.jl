@@ -1,4 +1,4 @@
-module PowerOptimizationModelsTests
+module InfrastructureOptimizationModelsTests
 
 #=
 Testing Strategy:
@@ -9,7 +9,7 @@ Testing Strategy:
 =#
 
 using Test
-using PowerOptimizationModels
+using InfrastructureOptimizationModels
 using Logging
 using Dates
 
@@ -68,13 +68,13 @@ function run_tests()
             IS.set_group_levels!(multi_logger, config.group_levels)
         end
 
-        @info "Running PowerOptimizationModels.jl tests"
+        @info "Running InfrastructureOptimizationModels.jl tests"
         @info "Unit tests: $RUN_UNIT_TESTS"
         @info "Integration tests: $RUN_INTEGRATION_TESTS"
 
         if RUN_UNIT_TESTS
             @info "Starting unit tests..."
-            @time @testset "PowerOptimizationModels Unit Tests" begin
+            @time @testset "InfrastructureOptimizationModels Unit Tests" begin
                 # Lightweight tests (use only mock objects, no PSY types)
                 @testset "Lightweight Tests (mocks only)" begin
                     @info "Running lightweight tests..."
@@ -104,4 +104,4 @@ function run_tests()
     end
 end
 
-end # module PowerOptimizationModelsTests
+end # module InfrastructureOptimizationModelsTests

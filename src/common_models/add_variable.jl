@@ -46,7 +46,7 @@ If binary = true:
 ``  x^{device}_t \in {0,1} \forall t iff \text{binary = true}``
 
 # Arguments
-* container::OptimizationContainer : the optimization_container model built in PowerOptimizationModels
+* container::OptimizationContainer : the optimization_container model built in InfrastructureOptimizationModels
 * devices : Vector or Iterator with the devices
 * var_key::VariableKey : Base Name for the variable
 * binary::Bool : Select if the variable is binary

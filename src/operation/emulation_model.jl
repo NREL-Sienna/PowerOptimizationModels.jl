@@ -1,11 +1,11 @@
 """
-Abstract type for models that use default PowerOptimizationModels formulations. For custom emulation problems
+Abstract type for models that use default InfrastructureOptimizationModels formulations. For custom emulation problems
     use EmulationProblem as the super type.
 """
 abstract type DefaultEmulationProblem <: EmulationProblem end
 
 """
-Default PowerOptimizationModels Emulation Problem Type for unspecified problems
+Default InfrastructureOptimizationModels Emulation Problem Type for unspecified problems
 """
 struct GenericEmulationProblem <: DefaultEmulationProblem end
 

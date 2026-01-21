@@ -5,14 +5,14 @@ Uses MockSystem and MockOptimizer from mocks/mock_system.jl
 
 using Dates
 using Test
-using PowerOptimizationModels
+using InfrastructureOptimizationModels
 
 # Define PSI alias if not already defined (mock_components.jl defines it)
 if !@isdefined(PSI)
-    const PSI = PowerOptimizationModels
+    const PSI = InfrastructureOptimizationModels
 end
 
-# MockSystem and MockOptimizer are defined in mocks/ and loaded by PowerOptimizationModelsTests.jl
+# MockSystem and MockOptimizer are defined in mocks/ and loaded by InfrastructureOptimizationModelsTests.jl
 
 @testset "Settings" begin
     @testset "Construction with defaults" begin

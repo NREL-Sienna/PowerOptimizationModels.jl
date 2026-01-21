@@ -538,7 +538,7 @@ function _show_method(
     if hasfield(T, :problem)
         name = results.problem
     else
-        name = "PowerOptimizationModels"
+        name = "InfrastructureOptimizationModels"
     end
 
     for (k, val) in values

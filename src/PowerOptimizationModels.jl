@@ -1,4 +1,4 @@
-module PowerOptimizationModels
+module InfrastructureOptimizationModels
 
 #################################################################################
 # Exports
@@ -281,7 +281,7 @@ export FromToFlowLimitParameter
 export ToFromFlowLimitParameter
 
 # NOTE: Datacenter-specific parameters removed - they belong in DataCenterModels.jl, not here
-# If you need these parameters, define them in your domain-specific package that imports PowerOptimizationModels
+# If you need these parameters, define them in your domain-specific package that imports InfrastructureOptimizationModels
 
 # Cost Parameters
 export CostFunctionParameter
@@ -346,7 +346,7 @@ import InfrastructureSystems: @assert_op, TableFormat, list_recorder_events, get
 # IS.Optimization imports: functions that have PSY methods that IS needs to access (therefore necessary)
 import InfrastructureSystems.Optimization: get_data_field
 
-# IS.Optimization imports that get reexported: no additional methods in PowerOptimizationModels (therefore necessary)
+# IS.Optimization imports that get reexported: no additional methods in InfrastructureOptimizationModels (therefore necessary)
 import InfrastructureSystems.Optimization:
     OptimizationProblemResults, OptimizationProblemResultsExport, OptimizerStats
 import InfrastructureSystems.Optimization:
@@ -356,7 +356,7 @@ import InfrastructureSystems.Optimization: get_variable_values, get_dual_values,
 import InfrastructureSystems.Optimization:
     get_objective_value, export_realized_results, export_optimizer_stats
 
-# IS.Optimization imports that get reexported: yes additional methods in PowerOptimizationModels (therefore may or may not be desired)
+# IS.Optimization imports that get reexported: yes additional methods in InfrastructureOptimizationModels (therefore may or may not be desired)
 import InfrastructureSystems.Optimization:
     read_variable, read_dual, read_parameter, read_aux_variable, read_expression
 import InfrastructureSystems.Optimization: list_variable_keys, list_dual_keys,
@@ -367,7 +367,7 @@ import InfrastructureSystems.Optimization: read_optimizer_stats, get_optimizer_s
     export_results, serialize_results, get_timestamps, get_model_base_power
 import InfrastructureSystems.Optimization: get_resolution, get_forecast_horizon
 
-# IS.Optimization imports that stay private, may or may not be additional methods in PowerOptimizationModels
+# IS.Optimization imports that stay private, may or may not be additional methods in InfrastructureOptimizationModels
 import InfrastructureSystems.Optimization: ArgumentConstructStage, ModelConstructStage
 import InfrastructureSystems.Optimization: STORE_CONTAINERS, STORE_CONTAINER_DUALS,
     STORE_CONTAINER_EXPRESSIONS, STORE_CONTAINER_PARAMETERS, STORE_CONTAINER_VARIABLES,
@@ -387,7 +387,7 @@ import InfrastructureSystems.Optimization: read_results_with_keys, deserialize_k
     convert_result_to_natural_units, to_matrix, get_store_container_type
 import InfrastructureSystems.Optimization: get_source_data
 
-# IS.Optimization imports that stay private, may or may not be additional methods in PowerOptimizationModels
+# IS.Optimization imports that stay private, may or may not be additional methods in InfrastructureOptimizationModels
 
 # PowerSystems imports
 import PowerSystems:
@@ -440,7 +440,7 @@ export QCLSPowerModel
 # Type Alias From other Packages
 const PM = PowerModels
 const PSY = PowerSystems
-const POM = PowerOptimizationModels
+const POM = InfrastructureOptimizationModels
 const IS = InfrastructureSystems
 const ISOPT = InfrastructureSystems.Optimization
 const MOI = MathOptInterface

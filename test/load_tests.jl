@@ -10,4 +10,4 @@ function recursive_includet(filename)
     end
 end
 
-recursive_includet("PowerOptimizationModelsTests.jl")
+recursive_includet("InfrastructureOptimizationModelsTests.jl")

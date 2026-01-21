@@ -7,7 +7,7 @@ abstract type AbstractProblemTemplate end
 """
     ProblemTemplate(::Type{T}) where {T<:PM.AbstractPowerFormulation}
 
-Creates a model reference of the PowerOptimizationModels Optimization Problem.
+Creates a model reference of the InfrastructureOptimizationModels Optimization Problem.
 
 # Arguments
 

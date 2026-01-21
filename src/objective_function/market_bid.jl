@@ -568,7 +568,7 @@ function _add_pwl_constraint!(
     name = PSY.get_name(component)
     sum_pwl_vars = sum(pwl_vars[name, ix, period] for ix in 1:len_cost_data)
 
-    # As detailed in https://github.com/NREL-Sienna/PowerOptimizationModels.jl/issues/1318,
+    # As detailed in https://github.com/NREL-Sienna/InfrastructureOptimizationModels.jl/issues/1318,
     # time-variable P1 is problematic, so for now we require P1 to be constant. Thus we can
     # just look up what it is currently fixed to and use that here without worrying about
     # updating.
@@ -882,7 +882,7 @@ Decremental offers are not accepted for most components, except Storage systems 
 
 # Arguments
 
-  - container::OptimizationContainer : the optimization_container model built in PowerOptimizationModels
+  - container::OptimizationContainer : the optimization_container model built in InfrastructureOptimizationModels
   - var_key::VariableKey: The variable name
   - component_name::String: The component_name of the variable container
   - cost_function::MarketBidCost : container for market bid cost

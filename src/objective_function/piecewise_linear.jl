@@ -473,7 +473,7 @@ Creates piecewise linear cost function using a sum of variables and expression w
 
 # Arguments
 
-  - container::OptimizationContainer : the optimization_container model built in PowerOptimizationModels
+  - container::OptimizationContainer : the optimization_container model built in InfrastructureOptimizationModels
   - var_key::VariableKey: The variable name
   - component_name::String: The component_name of the variable container
   - cost_function::PSY.CostCurve{PSY.PiecewisePointCurve}: container for piecewise linear cost
@@ -513,7 +513,7 @@ end
 """
 Creates piecewise linear cost function using a sum of variables and expression with sign and time step included.
 # Arguments
-  - container::OptimizationContainer : the optimization_container model built in PowerOptimizationModels
+  - container::OptimizationContainer : the optimization_container model built in InfrastructureOptimizationModels
   - var_key::VariableKey: The variable name
   - component_name::String: The component_name of the variable container
   - cost_function::PSY.CostCurve{PSY.PiecewisePointCurve}: container for piecewise linear cost
@@ -580,7 +580,7 @@ Creates piecewise linear cost function using a sum of variables and expression w
 
 # Arguments
 
-  - container::OptimizationContainer : the optimization_container model built in PowerOptimizationModels
+  - container::OptimizationContainer : the optimization_container model built in InfrastructureOptimizationModels
   - var_key::VariableKey: The variable name
   - component_name::String: The component_name of the variable container
   - cost_function::PSY.Union{PSY.CostCurve{PSY.PiecewiseIncrementalCurve}, PSY.CostCurve{PSY.PiecewiseAverageCurve}}: container for piecewise linear cost
@@ -626,7 +626,7 @@ Creates piecewise linear fuel cost function using a sum of variables and express
 
 # Arguments
 
-  - container::OptimizationContainer : the optimization_container model built in PowerOptimizationModels
+  - container::OptimizationContainer : the optimization_container model built in InfrastructureOptimizationModels
   - var_key::VariableKey: The variable name
   - component_name::String: The component_name of the variable container
   - cost_function::PSY.Union{PSY.FuelCurve{PSY.PiecewiseIncrementalCurve}, PSY.FuelCurve{PSY.PiecewiseAverageCurve}}: container for piecewise linear cost

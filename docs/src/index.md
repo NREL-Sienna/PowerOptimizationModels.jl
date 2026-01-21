@@ -1,16 +1,16 @@
-# PowerOptimizationModels.jl
+# InfrastructureOptimizationModels.jl
 
 ```@meta
-CurrentModule = PowerOptimizationModels
+CurrentModule = InfrastructureOptimizationModels
 ```
 
 ## Overview
 
-`PowerOptimizationModels.jl` is a [`Julia`](http://www.julialang.org) package that provides core abstractions and optimization model structures for power systems operations modeling. It defines `DecisionModel` and `EmulationModel` types along with their associated optimization containers, formulations, and result handling capabilities.
+`InfrastructureOptimizationModels.jl` is a [`Julia`](http://www.julialang.org) package that provides core abstractions and optimization model structures for power systems operations modeling. It defines `DecisionModel` and `EmulationModel` types along with their associated optimization containers, formulations, and result handling capabilities.
 
 ## About
 
-`PowerOptimizationModels` is part of the National Lab of the Rockies NLR (formerly known as NREL)
+`InfrastructureOptimizationModels` is part of the National Lab of the Rockies NLR (formerly known as NREL)
 [Sienna ecosystem](https://www.nrel.gov/analysis/sienna.html), an open source framework for
 scheduling problems and dynamic simulations for power systems. The Sienna ecosystem can be
 [found on github](https://github.com/NREL-Sienna/Sienna). It contains three applications:

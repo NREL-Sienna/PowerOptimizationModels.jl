@@ -1,11 +1,11 @@
 """
-Abstract type for models that use default PowerOptimizationModels formulations. For custom decision problems
+Abstract type for models that use default InfrastructureOptimizationModels formulations. For custom decision problems
     use DecisionProblem as the super type.
 """
 abstract type DefaultDecisionProblem <: DecisionProblem end
 
 """
-Generic PowerOptimizationModels Operation Problem Type for unspecified models
+Generic InfrastructureOptimizationModels Operation Problem Type for unspecified models
 """
 struct GenericOpProblem <: DefaultDecisionProblem end
 
