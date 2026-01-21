@@ -7,3 +7,13 @@ function get_default_attributes(
 ) where {U <: PSY.Component, F <: AbstractDeviceFormulation}
     return Dict{String, Any}()
 end
+
+"""
+Extension point: Get default time series names for a device formulation.
+"""
+function get_default_time_series_names(
+    ::Type{U},
+    ::Type{F},
+) where {U <: PSY.Component, F <: AbstractDeviceFormulation}
+    return Dict{Type{<:ParameterType}, String}()
+end

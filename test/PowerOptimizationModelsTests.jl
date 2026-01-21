@@ -2,9 +2,10 @@ module PowerOptimizationModelsTests
 
 #=
 Testing Strategy:
-- Unit tests use mock objects and avoid heavy operations
-- Focus on API surface, method signatures, and lightweight operations
-- Integration tests (opt-in) use real PowerSystems for full functionality
+- Lightweight tests run first using only mock objects (no PowerSystems types used)
+- Then tests that require PowerSystems types run
+- All heavy dependencies are loaded at module level (Julia requirement)
+  but tests are organized to run lightweight ones first
 =#
 
 using Test
@@ -16,7 +17,8 @@ using Dates
 using InfrastructureSystems
 const IS = InfrastructureSystems
 
-# Load mock infrastructure
+# Load mock infrastructure (lightweight, no PowerSystems dependency)
+include("mocks/mock_optimizer.jl")
 include("mocks/mock_system.jl")
 include("mocks/mock_components.jl")
 include("mocks/mock_time_series.jl")
@@ -26,6 +28,13 @@ include("mocks/constructors.jl")
 # Environment flags for test selection
 const RUN_UNIT_TESTS = get(ENV, "POM_RUN_UNIT_TESTS", "true") == "true"
 const RUN_INTEGRATION_TESTS = get(ENV, "POM_RUN_INTEGRATION_TESTS", "false") == "true"
+
+# Heavy dependencies - only load if we need tests that use them
+if RUN_INTEGRATION_TESTS
+    using PowerSystems
+    using JuMP
+    const PSY = PowerSystems
+end
 
 const LOG_FILE = "power-optimization-models-test.log"
 
@@ -63,50 +72,31 @@ function run_tests()
         @info "Unit tests: $RUN_UNIT_TESTS"
         @info "Integration tests: $RUN_INTEGRATION_TESTS"
 
-        # Unit tests (fast, no external dependencies except test mocks)
         if RUN_UNIT_TESTS
             @info "Starting unit tests..."
             @time @testset "PowerOptimizationModels Unit Tests" begin
-                # Core infrastructure tests
-                @testset "Core" begin
-                    test_files = [
-                        "unit/core/test_optimization_container.jl",
-                        "unit/core/test_device_model.jl",
-                        "unit/core/test_network_model.jl",
-                        "unit/core/test_problem_template.jl",
-                        "unit/core/test_settings.jl",
-                    ]
-                    for test_file in test_files
-                        if isfile(test_file)
-                            @info "Running $test_file"
-                            include(test_file)
-                        end
-                    end
+                # Lightweight tests (use only mock objects, no PSY types)
+                @testset "Lightweight Tests (mocks only)" begin
+                    @info "Running lightweight tests..."
+                    include("test_settings.jl")
                 end
 
-                # Results and I/O tests
-                @testset "Operation" begin
-                    test_files = [
-                        # Add as they are created:
-                        # "unit/operation/test_problem_results.jl",
-                        # "unit/operation/test_results_by_time.jl",
-                        # "unit/operation/test_serialization.jl",
-                    ]
-                    for test_file in test_files
-                        if isfile(test_file)
-                            @info "Running $test_file"
-                            include(test_file)
-                        end
+                # Tests requiring PowerSystems types
+                if RUN_INTEGRATION_TESTS
+                    @testset "Tests with PowerSystems" begin
+                        @info "Running tests that require PowerSystems..."
+                        include("test_device_model.jl")
+                        include("test_optimization_container.jl")
+                        include("test_pwl_methods.jl")
                     end
                 end
             end
         end
 
-        # Integration tests - for now just placeholder
+        # Integration tests - placeholder for future
         if RUN_INTEGRATION_TESTS
             @info "Starting integration tests..."
             @info "Note: Integration tests not yet implemented"
-            # Integration tests will be added later when needed
         end
 
         @test length(IS.get_log_events(multi_logger.tracker, Logging.Error)) == 0

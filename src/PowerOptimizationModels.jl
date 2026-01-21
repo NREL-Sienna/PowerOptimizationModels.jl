@@ -392,7 +392,7 @@ import InfrastructureSystems.Optimization: get_source_data
 # PowerSystems imports
 import PowerSystems:
     get_components, get_component, get_available_components, get_available_component,
-    get_groups, get_available_groups
+    get_groups, get_available_groups, stores_time_series_in_memory, get_base_power
 import PowerSystems: StartUpStages
 
 export get_name
@@ -489,13 +489,29 @@ include("core/standard_variables_expressions.jl")
 # Common models - extension points for device formulations
 include("common_models/variable_properties.jl")
 include("common_models/add_variable.jl")
+include("common_models/add_auxiliary_variable.jl")
 include("common_models/add_parameters.jl")
 include("common_models/add_constraints.jl")
+include("common_models/add_constraint_dual.jl")
+# include("common_models/add_to_expression.jl")
+include("common_models/set_expression.jl")
 include("common_models/construct_device.jl")
+# include("common_models/get_time_series.jl")  # requires TimeSeriesAttributes
 include("common_models/objective_function.jl")
+include("common_models/add_pwl_methods.jl")
+# include("common_models/range_constraint.jl")
+# include("common_models/duration_constraints.jl")
+# include("common_models/rateofchange_constraints.jl")
 include("common_models/get_default_attributes.jl")
 include("common_models/add_variable_cost.jl")
-# Note: add_to_expression.jl already exists and will be included elsewhere if needed
+
+# Objective function implementations
+# include("objective_function/common.jl")
+# include("objective_function/linear_curve.jl")
+# include("objective_function/quadratic_curve.jl")
+# include("objective_function/piecewise_linear.jl")
+# include("objective_function/market_bid.jl")
+# include("objective_function/import_export.jl")
 
 include("operation/operation_model_interface.jl")
 include("operation/decision_model_store.jl")
