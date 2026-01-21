@@ -1,13 +1,25 @@
 """
 Minimal mock components that satisfy PowerSystems device interfaces.
 Each mock is ~20 lines and implements only get_name, get_available, etc.
+
+These types can be used:
+1. As instance types (creating MockThermalGen instances)
+2. As type parameters for DeviceModel{D, B} (replacing PSY.ThermalStandard etc.)
+3. As type parameters for container keys (VariableKey, ConstraintKey, etc.)
 """
 
 using InfrastructureOptimizationModels
+using InfrastructureSystems
 const PSI = InfrastructureOptimizationModels
+const IS = InfrastructureSystems
 
 # Mock formulation type for testing DeviceModel
 struct TestDeviceFormulation <: PSI.AbstractDeviceFormulation end
+
+# Abstract mock device type for testing rejection of abstract types in DeviceModel
+# Subtypes IS.InfrastructureSystemsType so they work with container keys
+abstract type AbstractMockDevice <: IS.InfrastructureSystemsType end
+abstract type AbstractMockGenerator <: AbstractMockDevice end
 
 # Mock Bus
 struct MockBus
@@ -73,3 +85,8 @@ get_available(b::MockBranch) = b.available
 get_from_bus(b::MockBranch) = b.from_bus
 get_to_bus(b::MockBranch) = b.to_bus
 get_rate(b::MockBranch) = b.rating
+
+# Mock component type for use as type parameter in container keys
+# This replaces PSY.ThermalStandard etc. in tests that don't need real PSY types
+# Subtypes IS.InfrastructureSystemsType so it works with VariableKey, ConstraintKey, etc.
+struct MockComponentType <: IS.InfrastructureSystemsType end

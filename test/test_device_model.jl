@@ -1,9 +1,8 @@
 """
 Unit tests for DeviceModel struct and related functions.
-Uses TestDeviceFormulation from mocks/mock_components.jl
+Uses mock types from mocks/mock_components.jl - no PowerSystems dependency.
 """
 
-using PowerSystems
 using Test
 using InfrastructureOptimizationModels
 
@@ -11,17 +10,15 @@ using InfrastructureOptimizationModels
 if !@isdefined(PSI)
     const PSI = InfrastructureOptimizationModels
 end
-if !@isdefined(PSY)
-    const PSY = PowerSystems
-end
 
-# TestDeviceFormulation is defined in mocks/mock_components.jl
+# TestDeviceFormulation, MockThermalGen, MockRenewableGen, MockLoad,
+# AbstractMockDevice, AbstractMockGenerator are defined in mocks/mock_components.jl
 
 @testset "DeviceModel" begin
     @testset "Construction with defaults" begin
-        model = PSI.DeviceModel(PSY.ThermalStandard, TestDeviceFormulation)
+        model = PSI.DeviceModel(MockThermalGen, TestDeviceFormulation)
 
-        @test PSI.get_component_type(model) == PSY.ThermalStandard
+        @test PSI.get_component_type(model) == MockThermalGen
         @test PSI.get_formulation(model) == TestDeviceFormulation
         @test isempty(PSI.get_feedforwards(model))
         @test PSI.get_use_slacks(model) == false
@@ -33,7 +30,7 @@ end
 
     @testset "Construction with custom values" begin
         model = PSI.DeviceModel(
-            PSY.ThermalStandard,
+            MockThermalGen,
             TestDeviceFormulation;
             use_slacks = true,
             attributes = Dict{String, Any}("custom_attr" => 42),
@@ -47,7 +44,7 @@ end
     @testset "Attributes merging" begin
         # Custom attributes should merge with defaults from get_default_attributes
         model = PSI.DeviceModel(
-            PSY.ThermalStandard,
+            MockThermalGen,
             TestDeviceFormulation;
             attributes = Dict{String, Any}("my_key" => "my_value"),
         )
@@ -58,13 +55,13 @@ end
     end
 
     @testset "Time series names" begin
-        model = PSI.DeviceModel(PSY.ThermalStandard, TestDeviceFormulation)
+        model = PSI.DeviceModel(MockThermalGen, TestDeviceFormulation)
         ts_names = PSI.get_time_series_names(model)
         @test ts_names isa Dict
     end
 
     @testset "Subsystem management" begin
-        model = PSI.DeviceModel(PSY.ThermalStandard, TestDeviceFormulation)
+        model = PSI.DeviceModel(MockThermalGen, TestDeviceFormulation)
 
         @test PSI.get_subsystem(model) === nothing
 
@@ -82,8 +79,8 @@ end
 
     @testset "_check_device_formulation rejects abstract types" begin
         # Should reject abstract device type
-        @test_throws ArgumentError PSI._check_device_formulation(PSY.Device)
-        @test_throws ArgumentError PSI._check_device_formulation(PSY.Generator)
+        @test_throws ArgumentError PSI._check_device_formulation(AbstractMockDevice)
+        @test_throws ArgumentError PSI._check_device_formulation(AbstractMockGenerator)
 
         # Should reject abstract formulation type
         @test_throws ArgumentError PSI._check_device_formulation(
@@ -91,58 +88,61 @@ end
         )
 
         # Should accept concrete types
-        @test PSI._check_device_formulation(PSY.ThermalStandard) === nothing
+        @test PSI._check_device_formulation(MockThermalGen) === nothing
         @test PSI._check_device_formulation(TestDeviceFormulation) === nothing
     end
 
     @testset "DeviceModel rejects abstract types in constructor" begin
         # Abstract device type should fail
-        @test_throws ArgumentError PSI.DeviceModel(PSY.Device, TestDeviceFormulation)
+        @test_throws ArgumentError PSI.DeviceModel(
+            AbstractMockDevice,
+            TestDeviceFormulation,
+        )
 
         # Abstract formulation type should fail
         @test_throws ArgumentError PSI.DeviceModel(
-            PSY.ThermalStandard,
+            MockThermalGen,
             PSI.AbstractDeviceFormulation,
         )
     end
 
     @testset "_set_model!" begin
         dict = Dict{Symbol, Any}()
-        model = PSI.DeviceModel(PSY.ThermalStandard, TestDeviceFormulation)
+        model = PSI.DeviceModel(MockThermalGen, TestDeviceFormulation)
 
         PSI._set_model!(dict, model)
 
-        @test haskey(dict, :ThermalStandard)
-        @test dict[:ThermalStandard] === model
+        @test haskey(dict, :MockThermalGen)
+        @test dict[:MockThermalGen] === model
     end
 
     @testset "_set_model! warns on overwrite" begin
         dict = Dict{Symbol, Any}()
-        model1 = PSI.DeviceModel(PSY.ThermalStandard, TestDeviceFormulation)
-        model2 = PSI.DeviceModel(PSY.ThermalStandard, TestDeviceFormulation)
+        model1 = PSI.DeviceModel(MockThermalGen, TestDeviceFormulation)
+        model2 = PSI.DeviceModel(MockThermalGen, TestDeviceFormulation)
 
         PSI._set_model!(dict, model1)
 
         # Second call should warn about overwriting
         @test_logs (:warn, r"Overwriting.*existing model") PSI._set_model!(dict, model2)
-        @test dict[:ThermalStandard] === model2
+        @test dict[:MockThermalGen] === model2
     end
 
     @testset "Multiple device types" begin
-        # Test with different PSY device types
-        thermal_model = PSI.DeviceModel(PSY.ThermalStandard, TestDeviceFormulation)
-        @test PSI.get_component_type(thermal_model) == PSY.ThermalStandard
+        # Test with different mock device types
+        thermal_model = PSI.DeviceModel(MockThermalGen, TestDeviceFormulation)
+        @test PSI.get_component_type(thermal_model) == MockThermalGen
 
-        renewable_model = PSI.DeviceModel(PSY.RenewableDispatch, TestDeviceFormulation)
-        @test PSI.get_component_type(renewable_model) == PSY.RenewableDispatch
+        renewable_model = PSI.DeviceModel(MockRenewableGen, TestDeviceFormulation)
+        @test PSI.get_component_type(renewable_model) == MockRenewableGen
 
-        load_model = PSI.DeviceModel(PSY.PowerLoad, TestDeviceFormulation)
-        @test PSI.get_component_type(load_model) == PSY.PowerLoad
+        load_model = PSI.DeviceModel(MockLoad, TestDeviceFormulation)
+        @test PSI.get_component_type(load_model) == MockLoad
     end
 
     @testset "FixedOutput formulation" begin
         # FixedOutput is defined in device_model.jl
-        model = PSI.DeviceModel(PSY.ThermalStandard, PSI.FixedOutput)
+        model = PSI.DeviceModel(MockThermalGen, PSI.FixedOutput)
         @test PSI.get_formulation(model) == PSI.FixedOutput
     end
 end
