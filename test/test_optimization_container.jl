@@ -9,10 +9,6 @@ using InfrastructureSystems
 if !@isdefined(PSI)
     const PSI = InfrastructureOptimizationModels
 end
-if !@isdefined(PSY)
-    using PowerSystems
-    const PSY = PowerSystems
-end
 const ISOPT = InfrastructureSystems.Optimization
 
 # Mock constraint/expression types for testing container machinery
@@ -32,12 +28,12 @@ struct MockExpressionType <: ISOPT.ExpressionType end
             time_series_cache_size = 0,  # Bypass stores_time_series_in_memory check
         )
 
-        # Create container - uses duck-typed system
+        # Create container - uses duck-typed system and mock time series type
         container = PSI.OptimizationContainer(
             mock_sys,
             settings,
             nothing,
-            PSY.Deterministic,
+            MockDeterministic,
         )
 
         @test PSI.get_model_base_power(container) == 100.0
@@ -58,13 +54,13 @@ struct MockExpressionType <: ISOPT.ExpressionType end
             mock_sys,
             settings,
             nothing,
-            PSY.Deterministic,
+            MockDeterministic,
         )
 
         # Set time steps (normally done by init_optimization_container!)
         PSI.set_time_steps!(container, 1:24)
 
-        # Add a variable container using a real PSY component type as the key
+        # Add a variable container using mock component type as the key
         # (the container just needs a type - doesn't need actual component instances)
         device_names = ["gen1", "gen2", "gen3"]
         time_steps = PSI.get_time_steps(container)
@@ -72,7 +68,7 @@ struct MockExpressionType <: ISOPT.ExpressionType end
         var_container = PSI.add_variable_container!(
             container,
             PSI.ActivePowerVariable(),
-            PSY.ThermalStandard,
+            MockComponentType,
             device_names,
             time_steps,
         )
@@ -81,12 +77,12 @@ struct MockExpressionType <: ISOPT.ExpressionType end
         @test !isempty(PSI.get_variables(container))
 
         # Verify we can retrieve it
-        var_key = PSI.VariableKey(PSI.ActivePowerVariable, PSY.ThermalStandard)
+        var_key = PSI.VariableKey(PSI.ActivePowerVariable, MockComponentType)
         @test haskey(PSI.get_variables(container), var_key)
 
         # Verify dimensions
         retrieved =
-            PSI.get_variable(container, PSI.ActivePowerVariable(), PSY.ThermalStandard)
+            PSI.get_variable(container, PSI.ActivePowerVariable(), MockComponentType)
         @test size(retrieved) == (length(device_names), length(time_steps))
     end
 
@@ -102,7 +98,7 @@ struct MockExpressionType <: ISOPT.ExpressionType end
             mock_sys,
             settings,
             nothing,
-            PSY.Deterministic,
+            MockDeterministic,
         )
         PSI.set_time_steps!(container, 1:24)
 
@@ -112,14 +108,14 @@ struct MockExpressionType <: ISOPT.ExpressionType end
         cons_container = PSI.add_constraints_container!(
             container,
             MockConstraintType(),
-            PSY.ThermalStandard,
+            MockComponentType,
             device_names,
             time_steps,
         )
 
         @test !isempty(PSI.get_constraints(container))
 
-        cons_key = PSI.ConstraintKey(MockConstraintType, PSY.ThermalStandard)
+        cons_key = PSI.ConstraintKey(MockConstraintType, MockComponentType)
         @test haskey(PSI.get_constraints(container), cons_key)
     end
 
@@ -135,7 +131,7 @@ struct MockExpressionType <: ISOPT.ExpressionType end
             mock_sys,
             settings,
             nothing,
-            PSY.Deterministic,
+            MockDeterministic,
         )
         PSI.set_time_steps!(container, 1:24)
 
@@ -145,14 +141,14 @@ struct MockExpressionType <: ISOPT.ExpressionType end
         expr_container = PSI.add_expression_container!(
             container,
             MockExpressionType(),
-            PSY.ThermalStandard,
+            MockComponentType,
             device_names,
             time_steps,
         )
 
         @test !isempty(PSI.get_expressions(container))
 
-        expr_key = PSI.ExpressionKey(MockExpressionType, PSY.ThermalStandard)
+        expr_key = PSI.ExpressionKey(MockExpressionType, MockComponentType)
         @test haskey(PSI.get_expressions(container), expr_key)
     end
 end

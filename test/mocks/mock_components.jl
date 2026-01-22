@@ -1,13 +1,25 @@
 """
 Minimal mock components that satisfy PowerSystems device interfaces.
 Each mock is ~20 lines and implements only get_name, get_available, etc.
+
+These types can be used:
+1. As instance types (creating MockThermalGen instances)
+2. As type parameters for DeviceModel{D, B} (replacing PSY.ThermalStandard etc.)
+3. As type parameters for container keys (VariableKey, ConstraintKey, etc.)
 """
 
 using InfrastructureOptimizationModels
+using InfrastructureSystems
 const PSI = InfrastructureOptimizationModels
+const IS = InfrastructureSystems
 
 # Mock formulation type for testing DeviceModel
 struct TestDeviceFormulation <: PSI.AbstractDeviceFormulation end
+
+# Abstract mock device type for testing rejection of abstract types in DeviceModel
+# Subtypes IS.InfrastructureSystemsComponent so they work with DeviceModel and container keys
+abstract type AbstractMockDevice <: IS.InfrastructureSystemsComponent end
+abstract type AbstractMockGenerator <: AbstractMockDevice end
 
 # Mock Bus
 struct MockBus
@@ -21,7 +33,7 @@ get_number(b::MockBus) = b.number
 get_bustype(b::MockBus) = b.bustype
 
 # Mock Thermal Generator
-struct MockThermalGen
+struct MockThermalGen <: AbstractMockGenerator
     name::String
     available::Bool
     bus::MockBus
@@ -34,7 +46,7 @@ get_bus(g::MockThermalGen) = g.bus
 get_active_power_limits(g::MockThermalGen) = g.active_power_limits
 
 # Mock Renewable Generator
-struct MockRenewableGen
+struct MockRenewableGen <: AbstractMockGenerator
     name::String
     available::Bool
     bus::MockBus
@@ -47,7 +59,7 @@ get_bus(r::MockRenewableGen) = r.bus
 get_rating(r::MockRenewableGen) = r.rating
 
 # Mock Load
-struct MockLoad
+struct MockLoad <: AbstractMockDevice
     name::String
     available::Bool
     bus::MockBus
@@ -60,7 +72,7 @@ get_bus(l::MockLoad) = l.bus
 get_max_active_power(l::MockLoad) = l.max_active_power
 
 # Mock Branch
-struct MockBranch
+struct MockBranch <: AbstractMockDevice
     name::String
     available::Bool
     from_bus::MockBus
@@ -73,3 +85,8 @@ get_available(b::MockBranch) = b.available
 get_from_bus(b::MockBranch) = b.from_bus
 get_to_bus(b::MockBranch) = b.to_bus
 get_rate(b::MockBranch) = b.rating
+
+# Mock component type for use as type parameter in container keys
+# This replaces PSY.ThermalStandard etc. in tests that don't need real PSY types
+# Subtypes IS.InfrastructureSystemsComponent so it works with VariableKey, ConstraintKey, etc.
+struct MockComponentType <: IS.InfrastructureSystemsComponent end

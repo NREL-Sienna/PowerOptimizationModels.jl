@@ -5,7 +5,7 @@ struct FixedOutput <: IS.AbstractDeviceFormulation end
 
 function _check_device_formulation(
     ::Type{D},
-) where {D <: Union{IS.AbstractDeviceFormulation, PSY.Device}}
+) where {D <: Union{AbstractDeviceFormulation, IS.InfrastructureSystemsComponent}}
     if !isconcretetype(D)
         throw(
             ArgumentError(
@@ -31,7 +31,7 @@ feedforward to enable passing values between operation model at simulation time
 
 # Arguments
 
-  - `::Type{D} where D<:PSY.Device`: Power System Device Type
+  - `::Type{D}`: Device Type (e.g., PSY.ThermalStandard or a mock device type)
   - `::Type{B} where B<:AbstractDeviceFormulation`: Abstract Device Formulation
   - `feedforward::Array{<:AbstractAffectFeedforward} = Vector{AbstractAffectFeedforward}()` : use to pass parameters between models
   - `use_slacks::Bool = false` : Add slacks to the device model. Implementation is model dependent and not all models feature slacks
@@ -44,7 +44,10 @@ feedforward to enable passing values between operation model at simulation time
 thermal_gens = DeviceModel(ThermalStandard, ThermalBasicUnitCommitment)
 ```
 """
-mutable struct DeviceModel{D <: PSY.Device, B <: AbstractDeviceFormulation}
+mutable struct DeviceModel{
+    D <: IS.InfrastructureSystemsComponent,
+    B <: AbstractDeviceFormulation,
+}
     feedforwards::Vector{<:AbstractAffectFeedforward}
     use_slacks::Bool
     duals::Vector{DataType}
@@ -60,7 +63,7 @@ mutable struct DeviceModel{D <: PSY.Device, B <: AbstractDeviceFormulation}
         duals = Vector{DataType}(),
         time_series_names = get_default_time_series_names(D, B),
         attributes = Dict{String, Any}(),
-    ) where {D <: PSY.Device, B <: AbstractDeviceFormulation}
+    ) where {D <: IS.InfrastructureSystemsComponent, B <: AbstractDeviceFormulation}
         attributes_ = get_default_attributes(D, B)
         for (k, v) in attributes
             attributes_[k] = v
@@ -82,10 +85,10 @@ end
 
 get_component_type(
     ::DeviceModel{D, B},
-) where {D <: PSY.Device, B <: AbstractDeviceFormulation} = D
+) where {D <: IS.InfrastructureSystemsComponent, B <: AbstractDeviceFormulation} = D
 get_formulation(
     ::DeviceModel{D, B},
-) where {D <: PSY.Device, B <: AbstractDeviceFormulation} = B
+) where {D <: IS.InfrastructureSystemsComponent, B <: AbstractDeviceFormulation} = B
 get_feedforwards(m::DeviceModel) = m.feedforwards
 get_services(m::DeviceModel) = m.services
 get_services(::Nothing) = nothing
@@ -102,7 +105,7 @@ set_subsystem!(m::DeviceModel, id::String) = m.subsystem = id
 function _set_model!(
     dict::Dict,
     model::DeviceModel{D, B},
-) where {D <: PSY.Device, B <: AbstractDeviceFormulation}
+) where {D <: IS.InfrastructureSystemsComponent, B <: AbstractDeviceFormulation}
     key = nameof(D)
     if haskey(dict, key)
         @warn "Overwriting $(D) existing model"

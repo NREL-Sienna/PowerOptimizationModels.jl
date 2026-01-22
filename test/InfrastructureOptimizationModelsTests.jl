@@ -17,13 +17,16 @@ using Dates
 using InfrastructureSystems
 const IS = InfrastructureSystems
 
+# Test directory path for includes
+const TEST_DIR = @__DIR__
+
 # Load mock infrastructure (lightweight, no PowerSystems dependency)
-include("mocks/mock_optimizer.jl")
-include("mocks/mock_system.jl")
-include("mocks/mock_components.jl")
-include("mocks/mock_time_series.jl")
-include("mocks/mock_services.jl")
-include("mocks/constructors.jl")
+include(joinpath(TEST_DIR, "mocks/mock_optimizer.jl"))
+include(joinpath(TEST_DIR, "mocks/mock_system.jl"))
+include(joinpath(TEST_DIR, "mocks/mock_components.jl"))
+include(joinpath(TEST_DIR, "mocks/mock_time_series.jl"))
+include(joinpath(TEST_DIR, "mocks/mock_services.jl"))
+include(joinpath(TEST_DIR, "mocks/constructors.jl"))
 
 # Environment flags for test selection
 const RUN_UNIT_TESTS = get(ENV, "POM_RUN_UNIT_TESTS", "true") == "true"
@@ -78,16 +81,16 @@ function run_tests()
                 # Lightweight tests (use only mock objects, no PSY types)
                 @testset "Lightweight Tests (mocks only)" begin
                     @info "Running lightweight tests..."
-                    include("test_settings.jl")
+                    include(joinpath(TEST_DIR, "test_settings.jl"))
+                    include(joinpath(TEST_DIR, "test_device_model.jl"))
+                    include(joinpath(TEST_DIR, "test_optimization_container.jl"))
                 end
 
                 # Tests requiring PowerSystems types
                 if RUN_INTEGRATION_TESTS
                     @testset "Tests with PowerSystems" begin
                         @info "Running tests that require PowerSystems..."
-                        include("test_device_model.jl")
-                        include("test_optimization_container.jl")
-                        include("test_pwl_methods.jl")
+                        include(joinpath(TEST_DIR, "test_pwl_methods.jl"))
                     end
                 end
             end

@@ -135,20 +135,25 @@ function set_device_model!(
 end
 
 """
-Sets the device model in a template using a DeviceModel instance
+Sets the device model in a template using a DeviceModel instance.
+Routes to devices dictionary.
 """
 function set_device_model!(
     template::ProblemTemplate,
-    model::DeviceModel{<:PSY.Device, <:AbstractDeviceFormulation},
-)
+    model::DeviceModel{D},
+) where {D <: IS.InfrastructureSystemsComponent}
     _set_model!(template.devices, model)
     return
 end
 
+"""
+Sets the device model in a template using a DeviceModel instance.
+Specialization for Branch types - routes to branches dictionary.
+"""
 function set_device_model!(
     template::ProblemTemplate,
-    model::DeviceModel{<:PSY.Branch, <:AbstractDeviceFormulation},
-)
+    model::DeviceModel{D},
+) where {D <: PSY.Branch}
     _set_model!(template.branches, model)
     return
 end
