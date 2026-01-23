@@ -127,6 +127,9 @@ export get_variable_index
 export list_recorder_events
 export show_recorder_events
 export get_num_partitions
+export jump_value
+export ConstraintBounds
+export VariableBounds
 
 # Key Types (defined in IOM)
 export OptimizationContainerKey
@@ -150,6 +153,19 @@ export AbstractPowerFlowEvaluationData
 # Status Enums (from InfrastructureSystems)
 export ModelBuildStatus
 export RunStatus
+export SimulationBuildStatus
+
+# Problem Types
+export DefaultDecisionProblem
+export DefaultEmulationProblem
+
+# Settings and Data Types
+export Settings
+export InitialConditionsData
+
+# Constants
+export COST_EPSILON
+export INITIALIZATION_PROBLEM_HORIZON_COUNT
 
 #################################################################################
 # Imports
