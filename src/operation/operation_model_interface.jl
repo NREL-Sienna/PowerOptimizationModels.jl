@@ -377,7 +377,7 @@ read_optimizer_stats(model::OperationModel) = read_optimizer_stats(get_store(mod
 
 function add_recorders!(model::OperationModel, recorders)
     internal = get_internal(model)
-    for name in union(REQUIRED_RECORDERS, recorders)
+    for name in recorders
         add_recorder!(internal, name)
     end
 end
