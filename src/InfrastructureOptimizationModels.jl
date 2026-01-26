@@ -1,6 +1,146 @@
 module InfrastructureOptimizationModels
 
 #################################################################################
+# Imports
+
+import DataStructures: OrderedDict, Deque, SortedDict
+import Logging
+import Serialization
+# Modeling Imports
+import JuMP
+# so that users do not need to import JuMP to use a solver with PowerModels
+import JuMP: optimizer_with_attributes
+import JuMP.Containers: DenseAxisArray, SparseAxisArray
+import MathOptInterface
+import LinearAlgebra
+import JSON3
+import PowerSystems
+import InfrastructureSystems
+import PowerNetworkMatrices
+import PowerNetworkMatrices: PTDF, VirtualPTDF, LODF, VirtualLODF
+import InfrastructureSystems: @assert_op, TableFormat, list_recorder_events, get_name
+
+# IS.Optimization imports: base types that remain in InfrastructureSystems
+# Note: ModelBuildStatus is aliased in definitions.jl, so don't import it directly
+# TODO: some of these are device specific enough to belong in POM.
+import InfrastructureSystems.Optimization:
+    AbstractOptimizationContainer,
+    OptimizationKeyType,
+    AbstractModelStoreParams,
+    # Key types - imported from IS.Optimization to avoid duplication
+    VariableType,
+    ConstraintType,
+    AuxVariableType,
+    ParameterType,
+    InitialConditionType,
+    ExpressionType,
+    RightHandSideParameter,
+    ObjectiveFunctionParameter,
+    TimeSeriesParameter,
+    ConstructStage,
+    ArgumentConstructStage,
+    ModelConstructStage,
+    # Formulation abstract types
+    AbstractDeviceFormulation,
+    AbstractServiceFormulation,
+    AbstractReservesFormulation,
+    AbstractThermalFormulation,
+    AbstractRenewableFormulation,
+    AbstractStorageFormulation,
+    AbstractLoadFormulation,
+    AbstractHVDCNetworkModel,
+    AbstractPowerModel,
+    AbstractPTDFModel,
+    AbstractSecurityConstrainedPTDFModel,
+    AbstractActivePowerModel,
+    AbstractACPowerModel,
+    AbstractACPModel,
+    ACPPowerModel,
+    AbstractPowerFlowEvaluationModel,
+    AbstractPowerFlowEvaluationData
+
+import InfrastructureSystems:
+    @scoped_enum,
+    TableFormat,
+    get_variables,
+    get_parameters,
+    get_total_cost,
+    get_optimizer_stats,
+    get_timestamp,
+    write_results,
+    get_source_data,
+    configure_logging,
+    strip_module_name,
+    to_namedtuple,
+    get_uuid,
+    compute_file_hash,
+    convert_for_path,
+    COMPONENT_NAME_DELIMITER,
+    # Additional imports needed by core optimization files
+    InfrastructureSystemsType,
+    InfrastructureSystemsComponent,
+    Results,
+    TimeSeriesCacheKey,
+    TimeSeriesCache,
+    InvalidValue,
+    ConflictingInputsError
+
+# PowerSystems imports
+import PowerSystems:
+    get_components,
+    get_component,
+    get_available_components,
+    get_available_component,
+    get_groups,
+    get_available_groups,
+    stores_time_series_in_memory,
+    get_base_power
+import PowerSystems: StartUpStages
+
+import TimerOutputs
+
+# Base Imports
+import Base.getindex
+import Base.isempty
+import Base.length
+import Base.first
+import InteractiveUtils: methodswith
+
+# TimeStamp Management Imports
+import Dates
+import TimeSeries
+
+# I/O Imports
+import CSV
+import DataFrames
+import DataFrames: DataFrame, DataFrameRow, Not, innerjoin
+import DataFramesMeta: @chain, @orderby, @rename, @select, @subset, @transform
+import HDF5
+import PrettyTables
+
+################################################################################
+# Type Aliases
+
+const PSY = PowerSystems
+const POM = InfrastructureOptimizationModels
+const IS = InfrastructureSystems
+const ISOPT = InfrastructureSystems.Optimization
+const MOI = MathOptInterface
+const MOIU = MathOptInterface.Utilities
+const MOPFM = MOI.FileFormats.Model
+const PNM = PowerNetworkMatrices
+const TS = TimeSeries
+
+################################################################################
+
+using DocStringExtensions
+
+@template DEFAULT = """
+                    $(TYPEDSIGNATURES)
+                    $(DOCSTRING)
+                    """
+
+#################################################################################
 # Exports
 
 # Base Models
@@ -73,8 +213,8 @@ export objective_function!
 export initial_condition_variable
 export initial_condition_default
 export process_market_bid_parameters!
-## Results interfaces
 
+## Results interfaces
 export get_variable_values
 export get_dual_values
 export get_parameter_values
@@ -226,127 +366,17 @@ export InitialConditionsData
 export COST_EPSILON
 export INITIALIZATION_PROBLEM_HORIZON_COUNT
 
-#################################################################################
-# Imports
-import DataStructures: OrderedDict, Deque, SortedDict
-import Logging
-import Serialization
-# Modeling Imports
-import JuMP
-# so that users do not need to import JuMP to use a solver with PowerModels
-import JuMP: optimizer_with_attributes
-import JuMP.Containers: DenseAxisArray, SparseAxisArray
+# Re-exports from imports
 export optimizer_with_attributes
-import MathOptInterface
-import LinearAlgebra
-import JSON3
-import PowerSystems
-import InfrastructureSystems
-import PowerNetworkMatrices
-import PowerNetworkMatrices: PTDF, VirtualPTDF, LODF, VirtualLODF
 export PTDF
 export VirtualPTDF
 export LODF
 export VirtualLODF
-import InfrastructureSystems: @assert_op, TableFormat, list_recorder_events, get_name
-
-# IS.Optimization imports: base types that remain in InfrastructureSystems
-# Note: ModelBuildStatus is aliased in definitions.jl, so don't import it directly
-# TODO: some of these are device specific enough to belong in POM.
-import InfrastructureSystems.Optimization:
-    AbstractOptimizationContainer,
-    OptimizationKeyType,
-    AbstractModelStoreParams,
-    # Key types - imported from IS.Optimization to avoid duplication
-    VariableType,
-    ConstraintType,
-    AuxVariableType,
-    ParameterType,
-    InitialConditionType,
-    ExpressionType,
-    RightHandSideParameter,
-    ObjectiveFunctionParameter,
-    TimeSeriesParameter,
-    ConstructStage,
-    ArgumentConstructStage,
-    ModelConstructStage,
-    # Formulation abstract types
-    AbstractDeviceFormulation,
-    AbstractServiceFormulation,
-    AbstractReservesFormulation,
-    AbstractThermalFormulation,
-    AbstractRenewableFormulation,
-    AbstractStorageFormulation,
-    AbstractLoadFormulation,
-    AbstractHVDCNetworkModel,
-    AbstractPowerModel,
-    AbstractPTDFModel,
-    AbstractSecurityConstrainedPTDFModel,
-    AbstractActivePowerModel,
-    AbstractACPowerModel,
-    AbstractACPModel,
-    ACPPowerModel,
-    AbstractPowerFlowEvaluationModel,
-    AbstractPowerFlowEvaluationData
-
-import InfrastructureSystems:
-    @scoped_enum,
-    TableFormat,
-    get_variables,
-    get_parameters,
-    get_total_cost,
-    get_optimizer_stats,
-    get_timestamp,
-    write_results,
-    get_source_data,
-    configure_logging,
-    strip_module_name,
-    to_namedtuple,
-    get_uuid,
-    compute_file_hash,
-    convert_for_path,
-    COMPONENT_NAME_DELIMITER,
-    # Additional imports needed by core optimization files
-    InfrastructureSystemsType,
-    InfrastructureSystemsComponent,
-    Results,
-    TimeSeriesCacheKey,
-    TimeSeriesCache,
-    InvalidValue,
-    ConflictingInputsError
-
-# PowerSystems imports
-import PowerSystems:
-    get_components, get_component, get_available_components, get_available_component,
-    get_groups, get_available_groups, stores_time_series_in_memory, get_base_power
-import PowerSystems: StartUpStages
-
 export get_name
 export get_model_base_power
 export get_optimizer_stats
 export get_timestamps
 export get_resolution
-
-import TimerOutputs
-
-# Base Imports
-import Base.getindex
-import Base.isempty
-import Base.length
-import Base.first
-import InteractiveUtils: methodswith
-
-# TimeStamp Management Imports
-import Dates
-import TimeSeries
-
-# I/O Imports
-import CSV
-import DataFrames
-import DataFrames: DataFrame, DataFrameRow, Not, innerjoin
-import DataFramesMeta: @chain, @orderby, @rename, @select, @subset, @transform
-import HDF5
-import PrettyTables
 
 # PowerModels exports
 export ACPPowerModel
@@ -361,28 +391,9 @@ export SOCWRConicPowerModel
 export QCRMPowerModel
 export QCLSPowerModel
 
-################################################################################
-
-# Type Alias From other Packages
-const PSY = PowerSystems
-const POM = InfrastructureOptimizationModels
-const IS = InfrastructureSystems
-const ISOPT = InfrastructureSystems.Optimization
-const MOI = MathOptInterface
-const MOIU = MathOptInterface.Utilities
-const MOPFM = MOI.FileFormats.Model
-const PNM = PowerNetworkMatrices
-const TS = TimeSeries
-
-################################################################################
-
-using DocStringExtensions
-
-@template DEFAULT = """
-                    $(TYPEDSIGNATURES)
-                    $(DOCSTRING)
-                    """
+#################################################################################
 # Includes
+
 # Core optimization types must come first
 include("core/optimization_container_types.jl")       # Abstract types (VariableType, etc.)
 include("core/definitions.jl")                        # Aliases and enums (needs VariableType)
