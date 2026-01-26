@@ -30,20 +30,8 @@ struct ServiceRequirementVariable <: VariableType end
 # Auxiliary Variables
 struct LiftVariable <: VariableType end
 
-#################################################################################
-# Standard Auxiliary Variable Types
-# These are the base auxiliary variable types for tracking state
-#################################################################################
-
-"""
-Auxiliary Variable for Thermal Generation Models to keep track of time elapsed on
-"""
-struct TimeDurationOn <: AuxVariableType end
-
-"""
-Auxiliary Variable for Thermal Generation Models to keep track of time elapsed off
-"""
-struct TimeDurationOff <: AuxVariableType end
+# Note: TimeDurationOn and TimeDurationOff are device-specific auxiliary variable types
+# and should be defined in PowerOperationsModels, not here.
 
 # System Balance Variables
 struct SteadyStateFrequencyDeviation <: VariableType end

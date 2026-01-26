@@ -1,5 +1,3 @@
-# if we move add_initial_condition! out of this package, then won't need this stub.
-# TODO: the only difference between JUMP and Float64 in the return statement.
 """
 Extension point for downstream packages to define how to map initial condition types
 to variable types for specific device formulations.
@@ -43,7 +41,13 @@ function initial_condition_default(
     )
 end
 
-function _get_initial_conditions_value(
+#################################################################################
+# Generic get_initial_conditions_value implementations
+# Device-specific overloads should be defined in POM
+#################################################################################
+
+# Generic fallback for InitialCondition with Nothing value type
+function get_initial_conditions_value(
     ::Vector{T},
     component::W,
     ::U,
@@ -57,14 +61,15 @@ function _get_initial_conditions_value(
     return InitialCondition{U, Nothing}(component, nothing)
 end
 
-function _get_initial_conditions_value(
+# Generic implementation for Float64 value type
+function get_initial_conditions_value(
     ::Vector{T},
     component::W,
     ::U,
     ::V,
     container::OptimizationContainer,
 ) where {
-    T <: InitialCondition{U, Float64},
+    T <: Union{InitialCondition{U, Float64}, InitialCondition{U, Nothing}},
     V <: Union{AbstractDeviceFormulation, AbstractServiceFormulation},
     W <: PSY.Component,
 } where {U <: InitialConditionType}
@@ -80,14 +85,15 @@ function _get_initial_conditions_value(
     return InitialCondition{U, Float64}(component, val)
 end
 
-function _get_initial_conditions_value(
+# Generic implementation for JuMP.VariableRef value type
+function get_initial_conditions_value(
     ::Vector{T},
     component::W,
     ::U,
     ::V,
     container::OptimizationContainer,
 ) where {
-    T <: InitialCondition{U, JuMP.VariableRef},
+    T <: Union{InitialCondition{U, JuMP.VariableRef}, InitialCondition{U, Nothing}},
     V <: AbstractDeviceFormulation,
     W <: PSY.Component,
 } where {U <: InitialConditionType}
@@ -100,128 +106,14 @@ function _get_initial_conditions_value(
     end
     @debug "Device $(PSY.get_name(component)) initialized $U as $val" _group =
         LOG_GROUP_BUILD_INITIAL_CONDITIONS
-    # this is the only difference from above.
     return InitialCondition{U, JuMP.VariableRef}(
         component,
         add_jump_parameter(get_jump_model(container), val),
     )
 end
 
-# TODO : device-specific, probably move into POM.
-function _get_initial_conditions_value(
-    ::Vector{Union{InitialCondition{U, Float64}, InitialCondition{U, Nothing}}},
-    component::W,
-    ::U,
-    ::V,
-    container::OptimizationContainer,
-) where {
-    V <: AbstractThermalFormulation,
-    W <: PSY.Component,
-} where {U <: InitialTimeDurationOff}
-    ic_data = get_initial_conditions_data(container)
-    var_type = initial_condition_variable(U(), component, V())
-    if !has_initial_condition_value(ic_data, var_type, W)
-        val = initial_condition_default(U(), component, V())
-    else
-        var = get_initial_condition_value(ic_data, var_type, W)[PSY.get_name(component), 1]
-        val = 0.0
-        if !PSY.get_status(component) && !(var > ABSOLUTE_TOLERANCE)
-            val = PSY.get_time_at_status(component)
-        end
-    end
-    @debug "Device $(PSY.get_name(component)) initialized $U as $val" _group =
-        LOG_GROUP_BUILD_INITIAL_CONDITIONS
-    return InitialCondition{U, Float64}(component, val)
-end
-
-# TODO: device-specific, probably move into POM.
-function _get_initial_conditions_value(
-    ::Vector{Union{InitialCondition{U, JuMP.VariableRef}, InitialCondition{U, Nothing}}},
-    component::W,
-    ::U,
-    ::V,
-    container::OptimizationContainer,
-) where {
-    V <: AbstractThermalFormulation,
-    W <: PSY.ThermalGen,
-} where {U <: InitialTimeDurationOff}
-    ic_data = get_initial_conditions_data(container)
-    var_type = initial_condition_variable(U(), component, V())
-    if !has_initial_condition_value(ic_data, var_type, W)
-        val = initial_condition_default(U(), component, V())
-    else
-        var = get_initial_condition_value(ic_data, var_type, W)[PSY.get_name(component), 1]
-        val = 0.0
-        if !PSY.get_status(component) && !(var > ABSOLUTE_TOLERANCE)
-            val = PSY.get_time_at_status(component)
-        end
-    end
-    @debug "Device $(PSY.get_name(component)) initialized $U as $val" _group =
-        LOG_GROUP_BUILD_INITIAL_CONDITIONS
-    return InitialCondition{U, JuMP.VariableRef}(
-        component,
-        add_jump_parameter(get_jump_model(container), val),
-    )
-end
-
-# TODO : device-specific, probably move into POM.
-function _get_initial_conditions_value(
-    ::Vector{Union{InitialCondition{U, Float64}, InitialCondition{U, Nothing}}},
-    component::W,
-    ::U,
-    ::V,
-    container::OptimizationContainer,
-) where {
-    V <: AbstractThermalFormulation,
-    W <: PSY.ThermalGen,
-} where {U <: InitialTimeDurationOn}
-    ic_data = get_initial_conditions_data(container)
-    var_type = initial_condition_variable(U(), component, V())
-    if !has_initial_condition_value(ic_data, var_type, W)
-        val = initial_condition_default(U(), component, V())
-    else
-        var = get_initial_condition_value(ic_data, var_type, W)[PSY.get_name(component), 1]
-        val = 0.0
-        if PSY.get_status(component) && (var > ABSOLUTE_TOLERANCE)
-            val = PSY.get_time_at_status(component)
-        end
-    end
-    @debug "Device $(PSY.get_name(component)) initialized $U as $val" _group =
-        LOG_GROUP_BUILD_INITIAL_CONDITIONS
-    return InitialCondition{U, Float64}(component, val)
-end
-
-# TODO : device-specific, probably move into POM.
-function _get_initial_conditions_value(
-    ::Vector{Union{InitialCondition{U, JuMP.VariableRef}, InitialCondition{U, Nothing}}},
-    component::W,
-    ::U,
-    ::V,
-    container::OptimizationContainer,
-) where {
-    V <: AbstractThermalFormulation,
-    W <: PSY.ThermalGen,
-} where {U <: InitialTimeDurationOn}
-    ic_data = get_initial_conditions_data(container)
-    var_type = initial_condition_variable(U(), component, V())
-    if !has_initial_condition_value(ic_data, var_type, W)
-        val = initial_condition_default(U(), component, V())
-    else
-        var = get_initial_condition_value(ic_data, var_type, W)[PSY.get_name(component), 1]
-        val = 0.0
-        if PSY.get_status(component) && (var > ABSOLUTE_TOLERANCE)
-            val = PSY.get_time_at_status(component)
-        end
-    end
-    @debug "Device $(PSY.get_name(component)) initialized $U as $val" _group =
-        LOG_GROUP_BUILD_INITIAL_CONDITIONS
-    return InitialCondition{U, JuMP.VariableRef}(
-        component,
-        add_jump_parameter(get_jump_model(container), val),
-    )
-end
-
-function _get_initial_conditions_value(
+# InitialEnergyLevel with JuMP.VariableRef
+function get_initial_conditions_value(
     ::Vector{T},
     component::W,
     ::U,
@@ -239,7 +131,8 @@ function _get_initial_conditions_value(
     return T(component, add_jump_parameter(get_jump_model(container), val))
 end
 
-function _get_initial_conditions_value(
+# InitialEnergyLevel with Float64
+function get_initial_conditions_value(
     ::Vector{T},
     component::W,
     ::U,
@@ -256,6 +149,11 @@ function _get_initial_conditions_value(
         LOG_GROUP_BUILD_INITIAL_CONDITIONS
     return T(component, val)
 end
+
+#################################################################################
+# Generic add_initial_condition! implementation
+# Device-specific overloads should be defined in POM
+#################################################################################
 
 function add_initial_condition!(
     container::OptimizationContainer,
@@ -274,40 +172,7 @@ function add_initial_condition!(
     ini_cond_vector = add_initial_condition_container!(container, D(), T, components)
     for (ix, component) in enumerate(components)
         ini_cond_vector[ix] =
-            _get_initial_conditions_value(ini_cond_vector, component, D(), U(), container)
-    end
-    return
-end
-
-# TODO : device-specific, probably move into POM.
-function add_initial_condition!(
-    container::OptimizationContainer,
-    components::Union{Vector{T}, IS.FlattenIteratorWrapper{T}},
-    ::U,
-    ::D,
-) where {
-    T <: PSY.ThermalGen,
-    U <: AbstractThermalFormulation,
-    D <: Union{InitialTimeDurationOff, InitialTimeDurationOn, DeviceStatus},
-}
-    if get_rebuild_model(get_settings(container)) && has_container_key(container, D, T)
-        return
-    end
-
-    ini_cond_vector = add_initial_condition_container!(container, D(), T, components)
-    for (ix, component) in enumerate(components)
-        if PSY.get_must_run(component)
-            ini_cond_vector[ix] = InitialCondition{D, Nothing}(component, nothing)
-        else
-            ini_cond_vector[ix] =
-                _get_initial_conditions_value(
-                    ini_cond_vector,
-                    component,
-                    D(),
-                    U(),
-                    container,
-                )
-        end
+            get_initial_conditions_value(ini_cond_vector, component, D(), U(), container)
     end
     return
 end

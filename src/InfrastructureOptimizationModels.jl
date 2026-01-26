@@ -143,10 +143,13 @@ export get_initial_conditions_data
 export get_initial_condition_value
 export get_objective_expression
 export get_formulation
+export get_settings
+export get_rebuild_model
 
-# Initial condition time types
-export TimeDurationOn
-export TimeDurationOff
+# Initial condition infrastructure (extension points for POM)
+export get_initial_conditions_value
+export update_initial_conditions!
+# Note: TimeDurationOn and TimeDurationOff are device-specific and defined in POM
 
 # Key Types (defined in IOM)
 export OptimizationContainerKey
