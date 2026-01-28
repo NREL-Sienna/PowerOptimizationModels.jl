@@ -1,181 +1,28 @@
 
 ################## ic updates from store for emulation problems simulation #################
 
-function update_initial_conditions!(
-    ics::T,
-    store::EmulationModelStore,
-    ::Dates.Millisecond,
-) where {
-    T <: Union{
-        Vector{
-            Union{
-                InitialCondition{InitialTimeDurationOn, Nothing},
-                InitialCondition{InitialTimeDurationOn, Float64},
-            },
-        },
-        Vector{
-            Union{
-                InitialCondition{InitialTimeDurationOn, Nothing},
-                InitialCondition{InitialTimeDurationOn, JuMP.VariableRef},
-            },
-        },
-    },
-}
-    for ic in ics
-        var_val = get_value(store, TimeDurationOn(), get_component_type(ic))
-        set_ic_quantity!(ic, get_last_recorded_value(var_val)[get_component_name(ic)])
-    end
-    return
-end
+"""
+    update_initial_conditions!(ics, store, resolution)
 
-function update_initial_conditions!(
-    ics::T,
-    store::EmulationModelStore,
-    ::Dates.Millisecond,
-) where {
-    T <: Union{
-        Vector{
-            Union{
-                InitialCondition{InitialTimeDurationOff, Nothing},
-                InitialCondition{InitialTimeDurationOff, Float64},
-            },
-        },
-        Vector{
-            Union{
-                InitialCondition{InitialTimeDurationOff, Nothing},
-                InitialCondition{InitialTimeDurationOff, JuMP.VariableRef},
-            },
-        },
-    },
-}
-    for ic in ics
-        var_val = get_value(store, TimeDurationOff(), get_component_type(ic))
-        set_ic_quantity!(ic, get_last_recorded_value(var_val)[get_component_name(ic)])
-    end
-    return
-end
+Update initial conditions from the emulation model store.
+This is an extension point - concrete implementations for specific initial condition
+types should be defined in PowerOperationsModels.
 
+# Arguments
+- `ics`: Vector of InitialCondition objects to update
+- `store`: EmulationModelStore containing the recorded values
+- `resolution`: Time resolution (Dates.Millisecond)
+"""
 function update_initial_conditions!(
-    ics::T,
+    ics::Vector{<:InitialCondition},
     store::EmulationModelStore,
-    ::Dates.Millisecond,
-) where {
-    T <: Union{
-        Vector{
-            Union{
-                InitialCondition{DevicePower, Nothing},
-                InitialCondition{DevicePower, Float64},
-            },
-        },
-        Vector{
-            Union{
-                InitialCondition{DevicePower, Nothing},
-                InitialCondition{DevicePower, JuMP.VariableRef},
-            },
-        },
-    },
-}
-    for ic in ics
-        var_val = get_value(store, ActivePowerVariable(), get_component_type(ic))
-        set_ic_quantity!(ic, get_last_recorded_value(var_val)[get_component_name(ic)])
-    end
-    return
-end
-
-function update_initial_conditions!(
-    ics::T,
-    store::EmulationModelStore,
-    ::Dates.Millisecond,
-) where {
-    T <: Union{
-        Vector{
-            Union{
-                InitialCondition{DeviceStatus, Nothing},
-                InitialCondition{DeviceStatus, Float64},
-            },
-        },
-        Vector{
-            Union{
-                InitialCondition{DeviceStatus, Nothing},
-                InitialCondition{DeviceStatus, JuMP.VariableRef},
-            },
-        },
-    },
-}
-    for ic in ics
-        var_val = get_value(store, OnVariable(), get_component_type(ic))
-        set_ic_quantity!(ic, get_last_recorded_value(var_val)[get_component_name(ic)])
-    end
-    return
-end
-
-function update_initial_conditions!(
-    ics::T,
-    store::EmulationModelStore,
-    ::Dates.Millisecond,
-) where {
-    T <: Union{
-        Vector{
-            Union{
-                InitialCondition{DeviceAboveMinPower, Nothing},
-                InitialCondition{DeviceAboveMinPower, Float64},
-            },
-        },
-        Vector{
-            Union{
-                InitialCondition{DeviceAboveMinPower, Nothing},
-                InitialCondition{DeviceAboveMinPower, JuMP.VariableRef},
-            },
-        },
-    },
-}
-    for ic in ics
-        var_val =
-            get_value(store, PowerAboveMinimumVariable(), get_component_type(ic))
-        set_ic_quantity!(ic, get_last_recorded_value(var_val)[get_component_name(ic)])
-    end
-    return
-end
-
-#= Unused without the AGC model enabled
-function update_initial_conditions!(
-    ics::Vector{T},
-    store::EmulationModelStore,
-    ::Dates.Millisecond,
-) where {
-    T <: InitialCondition{AreaControlError, S},
-} where {S <: Union{Float64, JuMP.VariableRef}}
-    for ic in ics
-        var_val = get_value(store, AreaMismatchVariable(), get_component_type(ic))
-        set_ic_quantity!(ic, get_last_recorded_value(var_val)[get_component_name(ic)])
-    end
-    return
-end
-=#
-
-function update_initial_conditions!(
-    ics::T,
-    store::EmulationModelStore,
-    ::Dates.Millisecond,
-) where {
-    T <: Union{
-        Vector{
-            Union{
-                InitialCondition{InitialEnergyLevel, Nothing},
-                InitialCondition{InitialEnergyLevel, Float64},
-            },
-        },
-        Vector{
-            Union{
-                InitialCondition{InitialEnergyLevel, Nothing},
-                InitialCondition{InitialEnergyLevel, JuMP.VariableRef},
-            },
-        },
-    },
-}
-    for ic in ics
-        var_val = get_value(store, EnergyVariable(), get_component_type(ic))
-        set_ic_quantity!(ic, get_last_recorded_value(var_val)[get_component_name(ic)])
-    end
-    return
+    resolution::Dates.Millisecond,
+)
+    # This is a stub - concrete implementations for specific initial condition types
+    # (InitialTimeDurationOn, InitialTimeDurationOff, DevicePower, DeviceStatus, etc.)
+    # should be defined in PowerOperationsModels.
+    error(
+        "update_initial_conditions! not implemented for initial condition type " *
+        "$(eltype(ics)). Implement this method in PowerOperationsModels.",
+    )
 end
