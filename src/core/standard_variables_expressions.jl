@@ -30,6 +30,9 @@ struct ServiceRequirementVariable <: VariableType end
 # Auxiliary Variables
 struct LiftVariable <: VariableType end
 
+# Note: TimeDurationOn and TimeDurationOff are device-specific auxiliary variable types
+# and should be defined in PowerOperationsModels, not here.
+
 # System Balance Variables
 struct SteadyStateFrequencyDeviation <: VariableType end
 struct AreaMismatchVariable <: VariableType end
@@ -95,25 +98,57 @@ struct HVDCFlowDirectionVariable <: VariableType end
 # These are the base expression types for aggregating terms
 #################################################################################
 
-struct SystemBalanceExpressions <: ExpressionType end
-struct RangeConstraintLBExpressions <: ExpressionType end
-struct RangeConstraintUBExpressions <: ExpressionType end
-struct CostExpressions <: ExpressionType end
-struct ActivePowerBalance <: ExpressionType end
-struct ReactivePowerBalance <: ExpressionType end
+# Abstract types for expression hierarchies
+abstract type SystemBalanceExpressions <: ExpressionType end
+abstract type RangeConstraintLBExpressions <: ExpressionType end
+abstract type RangeConstraintUBExpressions <: ExpressionType end
+abstract type CostExpressions <: ExpressionType end
+abstract type PostContingencyExpressions <: ExpressionType end
+
+# Concrete expression types
+struct ActivePowerBalance <: SystemBalanceExpressions end
+struct ReactivePowerBalance <: SystemBalanceExpressions end
 struct EmergencyUp <: ExpressionType end
 struct EmergencyDown <: ExpressionType end
 struct RawACE <: ExpressionType end
-struct ProductionCostExpression <: ExpressionType end
+struct ProductionCostExpression <: CostExpressions end
 struct FuelConsumptionExpression <: ExpressionType end
-struct ActivePowerRangeExpressionLB <: ExpressionType end
-struct ActivePowerRangeExpressionUB <: ExpressionType end
-struct PostContingencyBranchFlow <: ExpressionType end
-struct PostContingencyActivePowerGeneration <: ExpressionType end
-struct PostContingencyActivePowerBalance <: ExpressionType end
+struct ActivePowerRangeExpressionLB <: RangeConstraintLBExpressions end
+struct ActivePowerRangeExpressionUB <: RangeConstraintUBExpressions end
+struct PostContingencyBranchFlow <: PostContingencyExpressions end
+struct PostContingencyActivePowerGeneration <: PostContingencyExpressions end
 struct NetActivePower <: ExpressionType end
 struct DCCurrentBalance <: ExpressionType end
 struct HVDCPowerBalance <: ExpressionType end
+
+# Result writing configuration for expression types
+should_write_resulting_value(::Type{<:CostExpressions}) = true
+should_write_resulting_value(::Type{FuelConsumptionExpression}) = true
+should_write_resulting_value(::Type{RawACE}) = true
+should_write_resulting_value(::Type{ActivePowerBalance}) = true
+should_write_resulting_value(::Type{ReactivePowerBalance}) = true
+should_write_resulting_value(::Type{DCCurrentBalance}) = true
+
+# ProductionCostExpression-specific container method (moved here from optimization_container.jl
+# because it requires ProductionCostExpression to be defined first)
+function add_expression_container!(
+    container::OptimizationContainer,
+    ::T,
+    ::Type{U},
+    axs...;
+    sparse = false,
+    meta = CONTAINER_KEY_EMPTY_META,
+) where {T <: ProductionCostExpression, U <: Union{PSY.Component, PSY.System}}
+    expr_key = ExpressionKey(T, U, meta)
+    expr_type = JuMP.QuadExpr
+    return _add_expression_container!(
+        container,
+        expr_key,
+        expr_type,
+        axs...;
+        sparse = sparse,
+    )
+end
 
 #################################################################################
 # Base Methods
