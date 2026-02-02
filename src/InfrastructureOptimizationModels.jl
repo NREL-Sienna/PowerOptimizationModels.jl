@@ -19,6 +19,8 @@ import InfrastructureSystems
 import PowerNetworkMatrices
 import PowerNetworkMatrices: PTDF, VirtualPTDF, LODF, VirtualLODF
 import InfrastructureSystems: @assert_op, TableFormat, list_recorder_events, get_name
+import InfrastructureSystems:
+    get_value_curve, get_power_units, get_function_data, get_proportional_term
 
 # IS.Optimization imports: base types that remain in InfrastructureSystems
 # Note: ModelBuildStatus is aliased in definitions.jl, so don't import it directly
@@ -443,7 +445,10 @@ include("common_models/add_pwl_methods.jl")
 # include("common_models/rateofchange_constraints.jl")
 
 # Objective function implementations
-
+include("objective_function/common.jl")
+include("objective_function/proportional.jl") # _add_proportional_term! (called by others)
+# and add_proportional_cost! and add_proportional_cost_maybe_time_variant! (both exported)
+include("objective_function/start_up_shut_down.jl") # add_{start_up, shut_down}_cost!
 # add_variable_cost_to_objective! implementations and that's it (no other exported functions)
 # same 5 arguments: container, variable, component, cost_curve, formulation.
 include("objective_function/linear_curve.jl")
@@ -452,9 +457,8 @@ include("objective_function/import_export.jl")
 
 # add_variable_cost! implementations, but "it's complicated." Other stuff exported too
 include("objective_function/piecewise_linear.jl")
-# include("objective_function/common.jl")
+# 
 # include("objective_function/market_bid.jl")
-
 
 include("operation/operation_model_interface.jl")
 include("operation/decision_model_store.jl")

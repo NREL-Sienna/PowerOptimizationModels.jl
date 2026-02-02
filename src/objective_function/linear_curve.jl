@@ -2,7 +2,7 @@
 function _add_linearcurve_variable_term_to_model!(
     container::OptimizationContainer,
     ::T,
-    component::PSY.Component,
+    component::IS.InfrastructureSystemsComponent,
     proportional_term_per_unit::Float64,
     time_period::Int,
 ) where {T <: VariableType}
@@ -29,7 +29,7 @@ end
 function _add_linearcurve_variable_cost!(
     container::OptimizationContainer,
     ::T,
-    component::PSY.Component,
+    component::IS.InfrastructureSystemsComponent,
     proportional_terms_per_unit::Vector{Float64},
 ) where {T <: VariableType}
     for t in get_time_steps(container)
@@ -48,7 +48,7 @@ end
 function _add_linearcurve_variable_cost!(
     container::OptimizationContainer,
     ::T,
-    component::PSY.Component,
+    component::IS.InfrastructureSystemsComponent,
     proportional_term_per_unit::Float64,
 ) where {T <: VariableType}
     for t in get_time_steps(container)
@@ -71,21 +71,21 @@ Adds to the cost function cost terms for sum of variables with common factor to 
   - container::OptimizationContainer : the optimization_container model built in InfrastructureOptimizationModels
   - var_key::VariableKey: The variable name
   - component_name::String: The component_name of the variable container
-  - cost_component::PSY.CostCurve{PSY.LinearCurve} : container for cost to be associated with variable
+  - cost_component::IS.CostCurve{IS.LinearCurve} : container for cost to be associated with variable
 """
 function add_variable_cost_to_objective!(
     container::OptimizationContainer,
     ::T,
-    component::PSY.Component,
-    cost_function::PSY.CostCurve{PSY.LinearCurve},
+    component::IS.InfrastructureSystemsComponent,
+    cost_function::IS.CostCurve{IS.LinearCurve},
     ::U,
 ) where {T <: VariableType, U <: AbstractDeviceFormulation}
     base_power = get_model_base_power(container)
-    device_base_power = PSY.get_base_power(component)
-    value_curve = PSY.get_value_curve(cost_function)
-    power_units = PSY.get_power_units(cost_function)
-    cost_component = PSY.get_function_data(value_curve)
-    proportional_term = PSY.get_proportional_term(cost_component)
+    device_base_power = get_base_power(component)
+    value_curve = get_value_curve(cost_function)
+    power_units = get_power_units(cost_function)
+    cost_component = get_function_data(value_curve)
+    proportional_term = get_proportional_term(cost_component)
     proportional_term_per_unit = get_proportional_cost_per_system_unit(
         proportional_term,
         power_units,
@@ -105,7 +105,7 @@ end
 function _add_fuel_linear_variable_cost!(
     container::OptimizationContainer,
     ::T,
-    component::PSY.Component,
+    component::IS.InfrastructureSystemsComponent,
     fuel_curve::Float64,
     fuel_cost::Float64,
 ) where {T <: VariableType}
@@ -118,7 +118,7 @@ function _add_fuel_linear_variable_cost!(
     component::V,
     ::Float64, # already normalized in MMBTU/p.u.
     fuel_cost::IS.TimeSeriesKey,
-) where {T <: VariableType, V <: PSY.Component}
+) where {T <: VariableType, V <: IS.InfrastructureSystemsComponent}
     _add_time_varying_fuel_variable_cost!(container, T(), component, fuel_cost)
     return
 end
@@ -136,8 +136,8 @@ Adds to the cost function cost terms for sum of variables with common factor to 
 function add_variable_cost_to_objective!(
     container::OptimizationContainer,
     ::T,
-    component::PSY.Component,
-    cost_function::PSY.FuelCurve{PSY.LinearCurve},
+    component::IS.InfrastructureSystemsComponent,
+    cost_function::PSY.FuelCurve{IS.LinearCurve},
     ::U,
 ) where {T <: VariableType, U <: AbstractDeviceFormulation}
     base_power = get_model_base_power(container)

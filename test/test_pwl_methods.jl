@@ -3,18 +3,10 @@ Unit tests for piecewise linear (PWL) approximation methods.
 Tests the mathematical correctness of breakpoint generation.
 """
 
-# These are loaded by the test harness before this file is included
-using JuMP
-using InfrastructureSystems
-using Dates
-using HiGHS
-
 # Define aliases if not already defined by test harness
 if !@isdefined(PSI)
     const PSI = InfrastructureOptimizationModels
 end
-const IS = InfrastructureSystems
-const ISOPT = InfrastructureSystems.Optimization
 
 # Test interpolation variable types
 struct TestInterpolationVariable <: PSI.InterpolationVariableType end
@@ -49,7 +41,7 @@ PSI.get_variable_lower_bound(
 # Helper functions
 #==============================================================================#
 
-function make_mock_thermal(name::String; min_power = 10.0, max_power = 100.0)
+function make_mock_thermal_pwl(name::String; min_power = 10.0, max_power = 100.0)
     bus = MockBus("bus1", 1, :PV)
     return MockThermalGen(name, true, bus, (min = min_power, max = max_power))
 end
@@ -144,7 +136,7 @@ function setup_pwl_constraint_test(;
     domain::Tuple{Float64, Float64} = (0.0, 10.0),
 )
     # Create mock devices
-    devices = [make_mock_thermal(name) for name in device_names]
+    devices = [make_mock_thermal_pwl(name) for name in device_names]
 
     # Setup container with all required variables
     container = setup_pwl_test_container(time_steps)
@@ -265,7 +257,7 @@ end
         @testset "Continuous interpolation variables" begin
             time_steps = 1:3
             num_segments = 4
-            devices = [make_mock_thermal("gen1"), make_mock_thermal("gen2")]
+            devices = [make_mock_thermal_pwl("gen1"), make_mock_thermal_pwl("gen2")]
 
             setup = setup_and_add_pwl_variables(
                 TestInterpolationVariable(), devices, time_steps, num_segments,
@@ -282,7 +274,7 @@ end
         @testset "Binary interpolation variables" begin
             time_steps = 1:2
             num_segments = 4
-            devices = [make_mock_thermal("gen1")]
+            devices = [make_mock_thermal_pwl("gen1")]
 
             setup = setup_and_add_pwl_variables(
                 TestBinaryInterpolationVariable(), devices, time_steps, num_segments,
@@ -303,7 +295,7 @@ end
         @testset "Multiple devices" begin
             time_steps = 1:2
             num_segments = 3
-            devices = [make_mock_thermal("gen$i") for i in 1:3]
+            devices = [make_mock_thermal_pwl("gen$i") for i in 1:3]
 
             setup = setup_and_add_pwl_variables(
                 TestInterpolationVariable(), devices, time_steps, num_segments,

@@ -16,6 +16,7 @@ using Dates
 # Import InfrastructureSystems for logging utilities
 using InfrastructureSystems
 const IS = InfrastructureSystems
+const ISOPT = InfrastructureSystems.Optimization
 
 # Test directory path for includes
 const TEST_DIR = @__DIR__
@@ -36,7 +37,9 @@ const RUN_INTEGRATION_TESTS = get(ENV, "POM_RUN_INTEGRATION_TESTS", "false") == 
 if RUN_INTEGRATION_TESTS
     using PowerSystems
     using JuMP
+    using HiGHS
     const PSY = PowerSystems
+    include(joinpath(TEST_DIR, "test_utils/objective_function_helpers.jl"))
 end
 
 const LOG_FILE = "power-optimization-models-test.log"
@@ -84,13 +87,14 @@ function run_tests()
                     include(joinpath(TEST_DIR, "test_settings.jl"))
                     include(joinpath(TEST_DIR, "test_device_model.jl"))
                     include(joinpath(TEST_DIR, "test_optimization_container.jl"))
-                    include(joinpath(TEST_DIR, "test_pwl_methods.jl"))
                 end
 
                 # Tests requiring PowerSystems types
                 if RUN_INTEGRATION_TESTS
                     @testset "Tests with PowerSystems" begin
                         @info "Running tests that require PowerSystems..."
+                        include(joinpath(TEST_DIR, "test_pwl_methods.jl")) # requires JuMP
+                        include(joinpath(TEST_DIR, "test_linear_curve.jl"))
                     end
                 end
             end

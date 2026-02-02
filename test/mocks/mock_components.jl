@@ -38,12 +38,18 @@ struct MockThermalGen <: AbstractMockGenerator
     available::Bool
     bus::MockBus
     active_power_limits::NamedTuple{(:min, :max), Tuple{Float64, Float64}}
+    base_power::Float64
 end
+
+# Constructor with default base_power for backward compatibility
+MockThermalGen(name, available, bus, limits) =
+    MockThermalGen(name, available, bus, limits, 100.0)
 
 get_name(g::MockThermalGen) = g.name
 get_available(g::MockThermalGen) = g.available
 get_bus(g::MockThermalGen) = g.bus
 get_active_power_limits(g::MockThermalGen) = g.active_power_limits
+InfrastructureOptimizationModels.get_base_power(g::MockThermalGen) = g.base_power
 
 # Mock Renewable Generator
 struct MockRenewableGen <: AbstractMockGenerator

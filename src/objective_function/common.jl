@@ -1,3 +1,32 @@
+# there's also a ReserveDemandCurve version in POM.
+"""
+Add a cost expression term to a cost-related expression container.
+"""
+function add_cost_to_expression!(
+    container::OptimizationContainer,
+    ::Type{S},
+    cost_expression::JuMPOrFloat,
+    component::T,
+    time_period::Int,
+) where {
+    S <: Union{CostExpressions, FuelConsumptionExpression},
+    T <: IS.InfrastructureSystemsComponent,
+}
+    if has_container_key(container, S, T)
+        device_cost_expression = get_expression(container, S(), T)
+        component_name = PSY.get_name(component)
+        JuMP.add_to_expression!(
+            device_cost_expression[component_name, time_period],
+            cost_expression,
+        )
+    end
+    return
+end
+
+# TODO export this.
+# set to -1.0 for loads in POM
+objective_function_multiplier(::VariableType, ::AbstractDeviceFormulation) = 1.0
+
 ##################################
 ######## Helper Functions ########
 ##################################
@@ -54,116 +83,6 @@ function add_variable_cost!(
 end
 
 ##################################
-#### Start/Stop Variable Cost ####
-##################################
-
-# TODO: move all the startup/shutdown cost functions to their own file.
-# not actually called anywhere in IOM, only in POM, and only relies on the proportional stuff.
-
-get_shutdown_cost_value(
-    container::OptimizationContainer,
-    component::PSY.Component,
-    time_period::Int,
-    is_time_variant_::Bool,
-) = _lookup_maybe_time_variant_param(
-    container,
-    component,
-    time_period,
-    Val(is_time_variant_),
-    PSY.get_shut_down ∘ PSY.get_operation_cost,
-    ShutdownCostParameter(),
-)
-
-function add_shut_down_cost!(
-    container::OptimizationContainer,
-    ::U,
-    devices::IS.FlattenIteratorWrapper{T},
-    ::V,
-) where {T <: PSY.Component, U <: VariableType, V <: AbstractDeviceFormulation}
-    multiplier = objective_function_multiplier(U(), V())
-    for d in devices
-        PSY.get_must_run(d) && continue
-
-        add_as_time_variant = is_time_variant(PSY.get_shut_down(PSY.get_operation_cost(d)))
-        for t in get_time_steps(container)
-            my_cost_term = get_shutdown_cost_value(
-                container,
-                d,
-                t,
-                add_as_time_variant,
-            )
-            iszero(my_cost_term) && continue
-            exp = _add_proportional_term_maybe_variant!(
-                Val(add_as_time_variant), container, U(), d, my_cost_term * multiplier,
-                t)
-            add_cost_to_expression!(container, ProductionCostExpression, exp, d, t)
-        end
-    end
-    return
-end
-
-function add_start_up_cost!(
-    container::OptimizationContainer,
-    ::U,
-    devices::IS.FlattenIteratorWrapper{T},
-    ::V,
-) where {T <: PSY.Component, U <: VariableType, V <: AbstractDeviceFormulation}
-    for d in devices
-        op_cost_data = PSY.get_operation_cost(d)
-        _add_start_up_cost_to_objective!(container, U(), d, op_cost_data, V())
-    end
-    return
-end
-
-function _add_start_up_cost_to_objective!(
-    container::OptimizationContainer,
-    ::T,
-    component::PSY.ThermalGen,
-    op_cost::Union{PSY.ThermalGenerationCost, PSY.MarketBidCost},
-    ::U,
-) where {T <: VariableType, U <: AbstractDeviceFormulation}
-    multiplier = objective_function_multiplier(T(), U())
-    PSY.get_must_run(component) && return
-    add_as_time_variant = is_time_variant(PSY.get_start_up(op_cost))
-    for t in get_time_steps(container)
-        my_cost_term = get_startup_cost_value(
-            container,
-            T(),
-            component,
-            U(),
-            t,
-            add_as_time_variant,
-        )
-        iszero(my_cost_term) && continue
-        exp = _add_proportional_term_maybe_variant!(
-            Val(add_as_time_variant), container, T(), component,
-            my_cost_term * multiplier, t)
-        add_cost_to_expression!(container, ProductionCostExpression, exp, component, t)
-    end
-    return
-end
-
-function get_startup_cost_value(
-    container::OptimizationContainer,
-    ::T,
-    component::V,
-    ::U,
-    time_period::Int,
-    is_time_variant_::Bool,
-) where {T <: VariableType, V <: PSY.Component, U <: AbstractDeviceFormulation}
-    raw_startup_cost = _lookup_maybe_time_variant_param(
-        container,
-        component,
-        time_period,
-        Val(is_time_variant_),
-        PSY.get_start_up ∘ PSY.get_operation_cost,
-        StartupCostParameter(),
-    )
-    # TODO add stub for start_up_cost.
-    return start_up_cost(raw_startup_cost, component, T(), U())
-end
-
-##################################
 ########## VOM Cost ##############
 ##################################
 
@@ -202,103 +121,6 @@ function _add_vom_cost_to_objective!(
             )
 
         add_cost_to_expression!(container, ProductionCostExpression, exp, component, t)
-    end
-    return
-end
-
-##################################
-####### Proportional Cost ########
-##################################
-
-# FIXME the only function that's actually "common" here is _add_proportional_term!,
-# which is called in linear, quadratic, and mbc cost functions.
-
-function add_proportional_cost!(
-    container::OptimizationContainer,
-    ::U,
-    devices::IS.FlattenIteratorWrapper{T},
-    ::V,
-) where {T <: PSY.Component, U <: VariableType, V <: AbstractDeviceFormulation}
-    # NOTE: anything time-varying should implement its own method.
-    multiplier = objective_function_multiplier(U(), V())
-    for d in devices
-        op_cost_data = PSY.get_operation_cost(d)
-        cost_term = proportional_cost(op_cost_data, U(), d, V())
-        iszero(cost_term) && continue
-        for t in get_time_steps(container)
-            exp = _add_proportional_term!(container, U(), d, cost_term * multiplier, t)
-
-            add_cost_to_expression!(container, ProductionCostExpression, exp, d, t)
-        end
-    end
-    return
-end
-
-# thermal-specific. Move?
-# I'm inclined to keep it here, so we don't have to export _add_proportional_term_maybe_variant!
-function add_proportional_cost!(
-    container::OptimizationContainer,
-    ::U,
-    devices::IS.FlattenIteratorWrapper{T},
-    ::V,
-) where {T <: PSY.ThermalGen, U <: OnVariable, V <: AbstractThermalUnitCommitment}
-    multiplier = objective_function_multiplier(U(), V())
-    for d in devices
-        op_cost_data = PSY.get_operation_cost(d)
-        for t in get_time_steps(container)
-            cost_term = proportional_cost(container, op_cost_data, U(), d, V(), t)
-            add_as_time_variant =
-                is_time_variant_term(container, op_cost_data, U(), d, V(), t)
-            iszero(cost_term) && continue
-            cost_term *= multiplier
-            exp = if PSY.get_must_run(d)
-                cost_term  # note we do not add this to the objective function
-            else
-                _add_proportional_term_maybe_variant!(
-                    Val(add_as_time_variant), container, U(), d, cost_term, t)
-            end
-
-            add_cost_to_expression!(container, ProductionCostExpression, exp, d, t)
-        end
-    end
-    return
-end
-
-# code repetition: same as above, just change types and remove must_run check.
-# controllable load specific. Move?
-function add_proportional_cost!(
-    container::OptimizationContainer,
-    ::U,
-    devices::IS.FlattenIteratorWrapper{T},
-    ::PowerLoadInterruption,
-) where {T <: PSY.ControllableLoad, U <: OnVariable}
-    multiplier = objective_function_multiplier(U(), PowerLoadInterruption())
-    for d in devices
-        op_cost_data = PSY.get_operation_cost(d)
-        for t in get_time_steps(container)
-            cost_term = proportional_cost(
-                container,
-                op_cost_data,
-                U(),
-                d,
-                PowerLoadInterruption(),
-                t,
-            )
-            add_as_time_variant =
-                is_time_variant_term(
-                    container,
-                    op_cost_data,
-                    U(),
-                    d,
-                    PowerLoadInterruption(),
-                    t,
-                )
-            iszero(cost_term) && continue
-            cost_term *= multiplier
-            exp = _add_proportional_term_maybe_variant!(
-                Val(add_as_time_variant), container, U(), d, cost_term, t)
-            add_cost_to_expression!(container, ProductionCostExpression, exp, d, t)
-        end
     end
     return
 end
@@ -355,68 +177,6 @@ function _get_cost_function_parameter_container(
     end
 end
 =#
-
-function _add_proportional_term_helper(
-    container::OptimizationContainer,
-    ::T,
-    component::U,
-    linear_term::Float64,
-    time_period::Int,
-) where {T <: VariableType, U <: PSY.Component}
-    component_name = PSY.get_name(component)
-    @debug "Linear Variable Cost" _group = LOG_GROUP_COST_FUNCTIONS component_name
-    variable = get_variable(container, T(), U)[component_name, time_period]
-    lin_cost = variable * linear_term
-    return lin_cost
-end
-
-# Invariant
-function _add_proportional_term!(
-    container::OptimizationContainer,
-    ::T,
-    component::U,
-    linear_term::Float64,
-    time_period::Int,
-) where {T <: VariableType, U <: PSY.Component}
-    lin_cost = _add_proportional_term_helper(
-        container, T(), component, linear_term, time_period)
-    add_to_objective_invariant_expression!(container, lin_cost)
-    return lin_cost
-end
-
-# Variant
-function _add_proportional_term_variant!(
-    container::OptimizationContainer,
-    ::T,
-    component::U,
-    linear_term::Float64,
-    time_period::Int,
-) where {T <: VariableType, U <: PSY.Component}
-    lin_cost = _add_proportional_term_helper(
-        container, T(), component, linear_term, time_period)
-    add_to_objective_variant_expression!(container, lin_cost)
-    return lin_cost
-end
-
-# Maybe variant
-_add_proportional_term_maybe_variant!(
-    ::Val{false},
-    container::OptimizationContainer,
-    ::T,
-    component::U,
-    linear_term::Float64,
-    time_period::Int,
-) where {T <: VariableType, U <: PSY.Component} =
-    _add_proportional_term!(container, T(), component, linear_term, time_period)
-_add_proportional_term_maybe_variant!(
-    ::Val{true},
-    container::OptimizationContainer,
-    ::T,
-    component::U,
-    linear_term::Float64,
-    time_period::Int,
-) where {T <: VariableType, U <: PSY.Component} =
-    _add_proportional_term_variant!(container, T(), component, linear_term, time_period)
 
 ##################################################
 ################## Fuel Cost #####################

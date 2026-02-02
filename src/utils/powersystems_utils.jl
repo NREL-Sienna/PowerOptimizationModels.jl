@@ -157,7 +157,7 @@ depending on the specified power units
 """
 function get_proportional_cost_per_system_unit(
     cost_term::Float64,
-    unit_system::PSY.UnitSystem,
+    unit_system::IS.UnitSystem,
     system_base_power::Float64,
     device_base_power::Float64,
 )
@@ -171,7 +171,7 @@ end
 
 function _get_proportional_cost_per_system_unit(
     cost_term::Float64,
-    ::Val{PSY.UnitSystem.SYSTEM_BASE},
+    ::Val{IS.UnitSystem.SYSTEM_BASE},
     system_base_power::Float64,
     device_base_power::Float64,
 )
@@ -180,7 +180,7 @@ end
 
 function _get_proportional_cost_per_system_unit(
     cost_term::Float64,
-    ::Val{PSY.UnitSystem.DEVICE_BASE},
+    ::Val{IS.UnitSystem.DEVICE_BASE},
     system_base_power::Float64,
     device_base_power::Float64,
 )
@@ -189,7 +189,7 @@ end
 
 function _get_proportional_cost_per_system_unit(
     cost_term::Float64,
-    ::Val{PSY.UnitSystem.NATURAL_UNITS},
+    ::Val{IS.UnitSystem.NATURAL_UNITS},
     system_base_power::Float64,
     device_base_power::Float64,
 )
