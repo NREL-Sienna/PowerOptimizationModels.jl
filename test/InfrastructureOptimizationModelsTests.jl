@@ -88,15 +88,16 @@ function run_tests()
                     include(joinpath(TEST_DIR, "test_settings.jl"))
                     include(joinpath(TEST_DIR, "test_device_model.jl"))
                     include(joinpath(TEST_DIR, "test_optimization_container.jl"))
+                    include(joinpath(TEST_DIR, "test_pwl_methods.jl")) # requires JuMP
+                    include(joinpath(TEST_DIR, "test_linear_curve.jl"))
+                    include(joinpath(TEST_DIR, "test_quadratic_curve.jl"))
+                    include(joinpath(TEST_DIR, "test_proportional.jl"))
                 end
 
                 # Tests requiring PowerSystems types
                 if RUN_INTEGRATION_TESTS
                     @testset "Tests with PowerSystems" begin
                         @info "Running tests that require PowerSystems..."
-                        include(joinpath(TEST_DIR, "test_pwl_methods.jl")) # requires JuMP
-                        include(joinpath(TEST_DIR, "test_linear_curve.jl"))
-                        include(joinpath(TEST_DIR, "test_quadratic_curve.jl"))
                     end
                 end
             end

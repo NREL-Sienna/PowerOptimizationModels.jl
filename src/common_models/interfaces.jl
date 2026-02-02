@@ -259,3 +259,53 @@ function get_variable_warm_start_value(
 }
     return nothing
 end
+
+###############################
+###### Proportional Cost ######
+###############################
+
+"""
+Extension point: Get proportional cost term from operation cost data.
+Non-time-varying signature - returns a single cost value for all time steps.
+"""
+function proportional_cost(
+    op_cost,
+    ::VariableType,
+    d::COMP_TYPE,
+    ::AbstractDeviceFormulation,
+)
+    return 0.0
+end
+
+"""
+Extension point: Get proportional cost term from operation cost data.
+Time-varying signature - may return different values per time step.
+"""
+function proportional_cost(
+    ::OptimizationContainer,
+    op_cost,
+    ::VariableType,
+    d::COMP_TYPE,
+    ::AbstractDeviceFormulation,
+    ::Int,
+)
+    return 0.0
+end
+
+"""
+Extension point: Check if proportional cost term is time-variant.
+Returns true if the cost should be added to the variant objective expression.
+"""
+function is_time_variant_term(
+    ::OptimizationContainer,
+    op_cost,
+    ::VariableType,
+    d::COMP_TYPE,
+    ::AbstractDeviceFormulation,
+    ::Int,
+)
+    return false
+end
+
+# stub so we can have operation cost in mock components
+get_operation_cost(::IS.InfrastructureSystemsComponent) = nothing

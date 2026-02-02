@@ -85,7 +85,7 @@ function add_proportional_cost!(
     # NOTE: anything time-varying should implement its own method.
     multiplier = objective_function_multiplier(U(), V())
     for d in devices
-        op_cost_data = PSY.get_operation_cost(d)
+        op_cost_data = get_operation_cost(d)
         cost_term = proportional_cost(op_cost_data, U(), d, V())
         iszero(cost_term) && continue
         for t in get_time_steps(container)
@@ -121,7 +121,7 @@ function add_proportional_cost_maybe_time_variant!(
 }
     multiplier = objective_function_multiplier(U(), V())
     for d in devices
-        op_cost_data = PSY.get_operation_cost(d)
+        op_cost_data = get_operation_cost(d)
         for t in get_time_steps(container)
             cost_term = proportional_cost(container, op_cost_data, U(), d, V(), t)
             add_as_time_variant =

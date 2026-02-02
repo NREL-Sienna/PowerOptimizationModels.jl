@@ -72,6 +72,7 @@ function make_mock_thermal(
     bus = MockBus("bus1", 1, :PV),
     limits = (min = 0.0, max = 100.0),
     base_power = 100.0,
+    operation_cost = MockOperationCost(0.0),
 )
-    return MockThermalGen(name, available, bus, limits, base_power)
+    return MockThermalGen(name, available, bus, limits, base_power, operation_cost)
 end
