@@ -121,7 +121,7 @@ import TimeSeries
 # I/O Imports
 import CSV
 import DataFrames
-import DataFrames: DataFrame, DataFrameRow, Not, innerjoin
+import DataFrames: DataFrame, DataFrameRow, Not, innerjoin, select
 import DataFramesMeta: @chain, @orderby, @rename, @select, @subset, @transform
 import HDF5
 import PrettyTables
@@ -399,6 +399,7 @@ export QCLSPowerModel
 
 #################################################################################
 # Includes
+# NOTE: all tracked files are either included here, or have a commented-out include.
 
 # Core optimization types must come first
 include("core/optimization_container_types.jl")       # Abstract types (VariableType, etc.)
@@ -427,9 +428,6 @@ include("core/dataset_container.jl")
 include("core/results_by_time.jl")
 
 # Order Required
-# Note: power_flow_data_wrapper.jl has been moved to PowerOperationsModels
-# as it depends on PowerFlows.jl types
-# include("core/power_flow_data_wrapper.jl")
 include("operation/problem_template.jl")
 include("core/optimization_container.jl")
 include("core/model_store_params.jl")
@@ -444,7 +442,7 @@ include("common_models/add_auxiliary_variable.jl")
 include("common_models/add_constraint_dual.jl")
 include("common_models/add_jump_expressions.jl") # helpers only used in POM.
 include("common_models/set_expression.jl") # helpers only used in POM.
-# include("common_models/get_time_series.jl")  # requires TimeSeriesAttributes
+include("common_models/get_time_series.jl")
 include("common_models/add_pwl_methods.jl")
 # include("common_models/range_constraint.jl")
 # include("common_models/duration_constraints.jl")
@@ -463,7 +461,7 @@ include("objective_function/import_export.jl")
 
 # add_variable_cost! implementations, but "it's complicated." Other stuff exported too
 include("objective_function/piecewise_linear.jl")
-# 
+# this one is a mess.
 # include("objective_function/market_bid.jl")
 
 include("operation/operation_model_interface.jl")
