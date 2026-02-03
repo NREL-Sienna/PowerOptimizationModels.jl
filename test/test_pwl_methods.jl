@@ -13,10 +13,12 @@ struct TestApproximatedVariable <: IOM.VariableType end
 struct TestPWLConstraint <: IOM.ConstraintType end
 
 # Test formulation type
-struct TestPWLFormulation <: IOM.AbstractDeviceFormulation end
-
-# Define sos_status for mock components - return NO_VARIABLE (no commitment tracking)
-IOM.sos_status(::MockThermalGen, ::TestPWLFormulation) = IOM.SOSStatusVariable.NO_VARIABLE
+if !isdefined(@__MODULE__, :TestPWLFormulation)
+    struct TestPWLFormulation <: IOM.AbstractDeviceFormulation end
+    # Define sos_status for mock components - return NO_VARIABLE (no commitment tracking)
+    IOM.sos_status(::MockThermalGen, ::TestPWLFormulation) =
+        IOM.SOSStatusVariable.NO_VARIABLE
+end
 
 # Define required methods for test types (only non-default values)
 IOM.get_variable_binary(

@@ -130,7 +130,7 @@ function run_tests()
                     # import_export.jl: commented out
                     include(joinpath(TEST_DIR, "test_linear_curve.jl"))
                     # market_bid.jl: needs more work
-                    # TODO piecewise_linear.jl (FuelCurve method tested in test_pwl_methods.jl)
+                    include(joinpath(TEST_DIR, "test_piecewise_linear.jl"))
                     include(joinpath(TEST_DIR, "test_proportional.jl"))
                     include(joinpath(TEST_DIR, "test_quadratic_curve.jl"))
                     # startup_shut_down.jl: in integration tests
