@@ -80,6 +80,43 @@ function add_cost_term_variant!(
     return cost
 end
 
+"""
+Add cost term to expression and variant objective with explicit rate.
+
+Like `add_cost_term_invariant!` but adds to variant objective. Use when the rate
+is computed at runtime rather than looked up from parameters.
+
+Note: the variant/invariant split is about whether the objective expression gets
+rebuilt between simulation steps, not about parameter references. Variant terms
+are regenerated each step; invariant terms stay constant.
+
+# Arguments
+- `container`: the optimization container
+- `quantity`: the value being costed (e.g., variable value, expression value)
+- `rate`: scalar cost rate (e.g., \$/MWh)
+- `E`: target expression type (caller provides, e.g., ProductionCostExpression)
+- `C`: component type
+- `name`: component name
+- `t`: time period
+"""
+function add_cost_term_variant!(
+    container::OptimizationContainer,
+    quantity::JuMPOrFloat,
+    rate::Float64,
+    ::Type{E},
+    ::Type{C},
+    name::String,
+    t::Int,
+) where {E <: ExpressionType, C <: IS.InfrastructureSystemsComponent}
+    cost = quantity * rate
+    if has_container_key(container, E, C)
+        expr = get_expression(container, E(), C)
+        JuMP.add_to_expression!(expr[name, t], cost)
+    end
+    add_to_objective_variant_expression!(container, cost)
+    return cost
+end
+
 #######################################
 ######## PWL Helper Functions #########
 #######################################

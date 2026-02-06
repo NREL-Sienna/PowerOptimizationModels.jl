@@ -28,43 +28,6 @@ end
 objective_function_multiplier(::VariableType, ::AbstractDeviceFormulation) = 1.0
 
 ##################################
-######## Helper Functions ########
-##################################
-
-# called in: startup cost, piecewise linear cost (from get_fuel_cost_value).
-"""
-Either looks up a value in the component using `getter_func` or fetches the value from the
-parameter `U()`, depending on whether we are in the time-variant case or not
-"""
-function _lookup_maybe_time_variant_param(
-    ::OptimizationContainer,
-    component::T,
-    ::Int,
-    ::Val{false},  # not time variant
-    getter_func::F,
-    ::U,
-) where {T <: IS.InfrastructureSystemsComponent, F <: Function, U <: ParameterType}
-    return getter_func(component)
-end
-
-function _lookup_maybe_time_variant_param(
-    container::OptimizationContainer,
-    component::T,
-    time_period::Int,
-    ::Val{true},  # yes time variant
-    ::F,
-    ::U,
-) where {T <: IS.InfrastructureSystemsComponent, F <: Function, U <: ParameterType}
-    # PERF this is modeled on the old get_fuel_cost_value function, but is it really
-    # performant to be fetching the whole array and multiplier array anew for every time step?
-    parameter_array = get_parameter_array(container, U(), T)
-    parameter_multiplier =
-        get_parameter_multiplier_array(container, U(), T)
-    name = PSY.get_name(component)
-    return parameter_array[name, time_period] .* parameter_multiplier[name, time_period]
-end
-
-##################################
 #### ActivePowerVariable Cost ####
 ##################################
 
@@ -110,17 +73,22 @@ function _add_vom_cost_to_objective!(
     )
     resolution = get_resolution(container)
     dt = Dates.value(resolution) / MILLISECONDS_IN_HOUR
-    for t in get_time_steps(container)
-        exp =
-            _add_proportional_term!(
-                container,
-                T(),
-                component,
-                cost_term_normalized * multiplier * dt,
-                t,
-            )
 
-        add_cost_to_expression!(container, ProductionCostExpression, exp, component, t)
+    name = PSY.get_name(component)
+    C = typeof(component)
+    rate = cost_term_normalized * multiplier * dt
+
+    for t in get_time_steps(container)
+        variable = get_variable(container, T(), C)[name, t]
+        add_cost_term_invariant!(
+            container,
+            variable,
+            rate,
+            ProductionCostExpression,
+            C,
+            name,
+            t,
+        )
     end
     return
 end
@@ -194,20 +162,18 @@ function _add_time_varying_fuel_variable_cost!(
     component::V,
     fuel_cost::IS.TimeSeriesKey,
 ) where {T <: VariableType, V <: PSY.Component}
-    parameter = get_parameter_array(container, FuelCostParameter(), V)
-    multiplier = get_parameter_multiplier_array(container, FuelCostParameter(), V)
     expression = get_expression(container, FuelConsumptionExpression(), V)
     name = PSY.get_name(component)
     for t in get_time_steps(container)
-        cost_expr = expression[name, t] * parameter[name, t] * multiplier[name, t]
-        add_cost_to_expression!(
+        add_cost_term_variant!(
             container,
+            expression[name, t],
+            FuelCostParameter,
             ProductionCostExpression,
-            cost_expr,
-            component,
+            V,
+            name,
             t,
         )
-        add_to_objective_variant_expression!(container, cost_expr)
     end
     return
 end

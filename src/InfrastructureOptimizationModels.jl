@@ -452,6 +452,7 @@ include("common_models/add_jump_expressions.jl") # helpers only used in POM.
 include("common_models/set_expression.jl") # helpers only used in POM.
 include("common_models/get_time_series.jl")
 include("common_models/add_pwl_methods.jl")
+include("common_models/constraint_helpers.jl")
 # include("common_models/range_constraint.jl")
 # include("common_models/duration_constraints.jl")
 # include("common_models/rateofchange_constraints.jl")
@@ -459,8 +460,7 @@ include("common_models/add_pwl_methods.jl")
 # Objective function implementations
 include("objective_function/cost_term_helpers.jl") # generic helpers: add_cost_term_{invariant,variant}!, PWL helpers
 include("objective_function/common.jl")
-include("objective_function/proportional.jl") # _add_proportional_term! (called by others)
-# and add_proportional_cost! and add_proportional_cost_maybe_time_variant! (both exported)
+include("objective_function/proportional.jl") # add_proportional_cost! and add_proportional_cost_maybe_time_variant!
 include("objective_function/start_up_shut_down.jl") # add_{start_up, shut_down}_cost!
 # add_variable_cost_to_objective! implementations and that's it (no other exported functions)
 # same 5 arguments: container, variable, component, cost_curve, formulation.

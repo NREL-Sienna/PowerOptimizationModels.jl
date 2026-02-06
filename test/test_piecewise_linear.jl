@@ -155,7 +155,7 @@ end
         @test pwl_var_container["gen1", 1, 1] === pwl_vars[1]
     end
 
-    @testset "_add_pwl_constraint! creates linking and normalization constraints" begin
+    @testset "_add_pwl_constraint_standard! creates linking and normalization constraints" begin
         (; container, device, pwl_data) = setup_pwl_test(; time_steps = 1:1)
 
         # First add the PWL variables
@@ -169,13 +169,15 @@ end
 
         # Add the PWL constraint
         break_points = IS.get_x_coords(pwl_data)
-        InfrastructureOptimizationModels._add_pwl_constraint!(
+        power_var =
+            IOM.get_variable(container, TestPWLVariable(), MockThermalGen)["gen1", 1]
+        InfrastructureOptimizationModels._add_pwl_constraint_standard!(
             container,
             device,
-            TestPWLVariable(),
             break_points,
             IOM.SOSStatusVariable.NO_VARIABLE,
             1,
+            power_var,
         )
 
         # Check that constraints were added
@@ -192,9 +194,8 @@ end
 
         norm_container = InfrastructureOptimizationModels.get_constraint(
             container,
-            InfrastructureOptimizationModels.PiecewiseLinearCostConstraint(),
+            InfrastructureOptimizationModels.PiecewiseLinearCostNormalizationConstraint(),
             MockThermalGen,
-            "normalization",
         )
         @test norm_container["gen1", 1] isa JuMP.ConstraintRef
     end
@@ -265,13 +266,13 @@ end
         end
     end
 
-    @testset "_add_pwl_sos_constraint! adds SOS2 constraint for non-convex curves" begin
+    @testset "add_pwl_sos2_constraint! adds SOS2 constraint for non-convex curves" begin
         (; container, device, pwl_data) =
             setup_pwl_test(; time_steps = 1:1, points = NONCONVEX_PWL_POINTS)
 
         @test !IS.is_convex(pwl_data)
 
-        InfrastructureOptimizationModels._add_pwl_variables!(
+        pwl_vars = InfrastructureOptimizationModels._add_pwl_variables!(
             container,
             MockThermalGen,
             "gen1",
@@ -279,16 +280,7 @@ end
             pwl_data,
         )
 
-        break_points = IS.get_x_coords(pwl_data)
-
-        @test_logs (:warn, r"not compatible with a linear PWL") InfrastructureOptimizationModels._add_pwl_sos_constraint!(
-            container,
-            device,
-            TestPWLVariable(),
-            break_points,
-            IOM.SOSStatusVariable.NO_VARIABLE,
-            1,
-        )
+        IOM.add_pwl_sos2_constraint!(container, MockThermalGen, "gen1", 1, pwl_vars)
 
         jump_model = InfrastructureOptimizationModels.get_jump_model(container)
         num_sos2 =

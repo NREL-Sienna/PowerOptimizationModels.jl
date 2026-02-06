@@ -2,24 +2,21 @@
 function _add_linearcurve_variable_term_to_model!(
     container::OptimizationContainer,
     ::T,
-    component::IS.InfrastructureSystemsComponent,
+    component::V,
     proportional_term_per_unit::Float64,
     time_period::Int,
-) where {T <: VariableType}
+) where {T <: VariableType, V <: IS.InfrastructureSystemsComponent}
     resolution = get_resolution(container)
     dt = Dates.value(resolution) / MILLISECONDS_IN_HOUR
-    linear_cost = _add_proportional_term!(
+    name = get_name(component)
+    variable = get_variable(container, T(), V)[name, time_period]
+    add_cost_term_invariant!(
         container,
-        T(),
-        component,
+        variable,
         proportional_term_per_unit * dt,
-        time_period,
-    )
-    add_cost_to_expression!(
-        container,
         ProductionCostExpression,
-        linear_cost,
-        component,
+        V,
+        name,
         time_period,
     )
     return

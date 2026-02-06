@@ -63,26 +63,27 @@ function setup_quadratic_test_container(
 end
 
 @testset "Quadratic Curve Objective Functions" begin
-    @testset "_add_quadratic_term! adds quadratic cost to invariant objective" begin
+    @testset "_add_quadraticcurve_variable_term_to_model! adds quadratic cost" begin
         time_steps = 1:3
         device = make_mock_thermal("gen1"; base_power = 100.0)
-        container = setup_quadratic_test_container(time_steps, device)
+        container =
+            setup_quadratic_test_container(time_steps, device; resolution = Dates.Hour(1))
 
-        # Quadratic terms: (quadratic_coef, linear_coef)
-        # q_cost = var^2 * q_terms[1] + var * q_terms[2]
-        q_terms = (2.0, 5.0)  # quadratic=2.0, linear=5.0
-        expression_multiplier = 1.0
+        # quadratic=2.0, linear=5.0 per unit
+        # With dt=1.0 (1 hour resolution), final coeffs should be same
+        quadratic_term = 2.0
+        linear_term = 5.0
 
-        InfrastructureOptimizationModels._add_quadratic_term!(
+        InfrastructureOptimizationModels._add_quadraticcurve_variable_term_to_model!(
             container,
             TestActivePowerVariable(),
             device,
-            q_terms,
-            expression_multiplier,
+            linear_term,
+            quadratic_term,
             1,  # time period
         )
 
-        # Verify coefficients: quadratic should be 2.0, linear should be 5.0
+        # Verify coefficients (dt=1.0 so same as input)
         quad_coef = get_objective_quadratic_coefficient(
             container,
             TestActivePowerVariable(),
@@ -98,8 +99,8 @@ end
             1,
         )
 
-        @test quad_coef ≈ q_terms[1] * expression_multiplier
-        @test lin_coef ≈ q_terms[2] * expression_multiplier
+        @test quad_coef ≈ quadratic_term  # dt=1.0
+        @test lin_coef ≈ linear_term  # dt=1.0
 
         # Other time periods should have zero coefficients
         for t in 2:3
@@ -112,20 +113,25 @@ end
         end
     end
 
-    @testset "_add_quadratic_term! with expression multiplier" begin
+    @testset "_add_quadraticcurve_variable_term_to_model! with dt scaling" begin
         time_steps = 1:2
         device = make_mock_thermal("gen1"; base_power = 100.0)
-        container = setup_quadratic_test_container(time_steps, device)
+        # 30 minute resolution gives dt=0.5
+        container = setup_quadratic_test_container(
+            time_steps,
+            device;
+            resolution = Dates.Minute(30),
+        )
 
-        q_terms = (3.0, 7.0)
-        expression_multiplier = 0.5  # dt scaling
+        quadratic_term = 3.0
+        linear_term = 7.0
 
-        InfrastructureOptimizationModels._add_quadratic_term!(
+        InfrastructureOptimizationModels._add_quadraticcurve_variable_term_to_model!(
             container,
             TestActivePowerVariable(),
             device,
-            q_terms,
-            expression_multiplier,
+            linear_term,
+            quadratic_term,
             1,
         )
 
@@ -136,8 +142,9 @@ end
             container, TestActivePowerVariable(), MockThermalGen, "gen1", 1,
         )
 
-        @test quad_coef ≈ q_terms[1] * expression_multiplier
-        @test lin_coef ≈ q_terms[2] * expression_multiplier
+        # dt = 0.5 for 30 minute resolution
+        @test quad_coef ≈ quadratic_term * 0.5
+        @test lin_coef ≈ linear_term * 0.5
     end
 
     @testset "_add_quadraticcurve_variable_cost! scalar - same cost all time steps" begin

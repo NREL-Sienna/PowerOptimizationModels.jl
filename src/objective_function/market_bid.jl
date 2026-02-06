@@ -1101,12 +1101,11 @@ end
 function _add_vom_cost_to_objective_helper!(
     container::OptimizationContainer,
     ::T,
-    component::PSY.Component,
+    component::C,
     ::PSY.OfferCurveCost,
     cost_data::PSY.CostCurve{PSY.PiecewiseIncrementalCurve},
     ::U,
-) where {T <: VariableType,
-    U <: AbstractDeviceFormulation}
+) where {T <: VariableType, C <: PSY.Component, U <: AbstractDeviceFormulation}
     power_units = PSY.get_power_units(cost_data)
     vom_cost = PSY.get_vom_cost(cost_data)
     multiplier = 1.0 # VOM Cost is always positive
@@ -1114,14 +1113,14 @@ function _add_vom_cost_to_objective_helper!(
     iszero(cost_term) && return
     base_power = get_model_base_power(container)
     device_base_power = PSY.get_base_power(component)
-    cost_term_normalized = get_proportional_cost_per_system_unit(cost_term,
-        power_units,
-        base_power,
-        device_base_power)
+    cost_term_normalized = get_proportional_cost_per_system_unit(
+        cost_term, power_units, base_power, device_base_power)
+    name = get_name(component)
+    rate = cost_term_normalized * multiplier
     for t in get_time_steps(container)
-        exp = _add_proportional_term!(container, T(), d, cost_term_normalized * multiplier,
-            t)
-        add_cost_to_expression!(container, ProductionCostExpression, exp, d, t)
+        variable = get_variable(container, T(), C)[name, t]
+        add_cost_term_invariant!(
+            container, variable, rate, ProductionCostExpression, C, name, t)
     end
     return
 end

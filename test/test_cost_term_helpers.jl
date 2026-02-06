@@ -164,6 +164,7 @@ Test types defined in test_utils/test_types.jl.
                 @test JuMP.lower_bound(var) == 0.0
                 @test JuMP.upper_bound(var) == 1.0
                 # Check name contains key elements (type names may be fully qualified)
+                # FIXME variable names depend on from where the function is called. ick.
                 var_name = JuMP.name(var)
                 @test occursin("TestPWLVariable", var_name)
                 @test occursin("gen1", var_name)

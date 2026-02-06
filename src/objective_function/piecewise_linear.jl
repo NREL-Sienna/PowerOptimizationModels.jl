@@ -16,6 +16,11 @@ See [Piecewise linear cost functions](@ref pwl_cost) for more information.
 """
 struct PiecewiseLinearCostConstraint <: ConstraintType end
 
+"""
+Normalization constraint for PWL cost: sum of delta variables equals on-status.
+"""
+struct PiecewiseLinearCostNormalizationConstraint <: ConstraintType end
+
 function _get_sos_value(
     container::OptimizationContainer,
     ::Type{V},
@@ -114,50 +119,63 @@ function _get_bin_lhs(
     end
 end
 
+# Migration note for POM:
+# Old call: _add_pwl_constraint!(container, component, U(), break_points, sos_val, t)
+# New call for standard form:
+#   power_var = get_variable(container, U(), T)[name, t]
+#   _add_pwl_constraint_standard!(container, component, break_points, sos_val, t, power_var)
+# New call for compact form (PowerAboveMinimumVariable):
+#   power_var = get_variable(container, U(), T)[name, t]
+#   P_min = get_active_power_limits(component).min
+#   _add_pwl_constraint_compact!(container, component, break_points, sos_val, t, power_var, P_min)
+
 """
-Implement the constraints for PWL variables. That is:
+Implement the standard constraints for PWL variables. That is:
 
 ```math
 \\sum_{k\\in\\mathcal{K}} P_k^{max} \\delta_{k,t} = p_t \\\\
 \\sum_{k\\in\\mathcal{K}} \\delta_{k,t} = on_t
 ```
+
+For compact form (PowerAboveMinimumVariable), use `_add_pwl_constraint_compact!` instead.
 """
-function _add_pwl_constraint!(
+function _add_pwl_constraint_standard!(
     container::OptimizationContainer,
     component::T,
-    ::U,
     break_points::Vector{Float64},
     sos_status::SOSStatusVariable,
     period::Int,
-) where {T <: IS.InfrastructureSystemsComponent, U <: VariableType}
-    variables = get_variable(container, U(), T)
-    const_container = lazy_container_addition!(
-        container,
-        PiecewiseLinearCostConstraint(),
-        T,
-        axes(variables)...,
-    )
-    len_cost_data = length(break_points)
-    jump_model = get_jump_model(container)
-    pwl_vars = get_variable(container, PiecewiseLinearCostVariable(), T)
+    power_var::JuMP.VariableRef,
+) where {T <: IS.InfrastructureSystemsComponent}
     name = get_name(component)
-    const_container[name, period] = JuMP.@constraint(
-        jump_model,
-        variables[name, period] ==
-        sum(pwl_vars[name, ix, period] * break_points[ix] for ix in 1:len_cost_data)
-    )
-    bin = _get_bin_lhs(container, sos_status, component, period)
-    const_normalization_container = lazy_container_addition!(
+    n_points = length(break_points)
+
+    # Get PWL delta variables
+    pwl_var_container = get_variable(container, PiecewiseLinearCostVariable(), T)
+    pwl_vars = [pwl_var_container[name, i, period] for i in 1:n_points]
+
+    # Linking constraint: power_var == sum(pwl_vars * breakpoints)
+    add_pwl_linking_constraint!(
         container,
-        PiecewiseLinearCostConstraint(),
+        PiecewiseLinearCostConstraint,
         T,
-        axes(variables)...;
-        meta = "normalization",
+        name,
+        period,
+        power_var,
+        pwl_vars,
+        break_points,
     )
 
-    const_normalization_container[name, period] = JuMP.@constraint(
-        jump_model,
-        sum(pwl_vars[name, i, period] for i in 1:len_cost_data) == bin
+    # Normalization constraint: sum(pwl_vars) == on_status
+    bin = _get_bin_lhs(container, sos_status, component, period)
+    add_pwl_normalization_constraint!(
+        container,
+        PiecewiseLinearCostNormalizationConstraint,
+        T,
+        name,
+        period,
+        pwl_vars,
+        bin,
     )
     return
 end
@@ -169,32 +187,26 @@ Implement the constraints for PWL variables for Compact form. That is:
 \\sum_{k\\in\\mathcal{K}} P_k^{max} \\delta_{k,t} = p_t + P_min * u_t \\\\
 \\sum_{k\\in\\mathcal{K}} \\delta_{k,t} = on_t
 ```
+
+For standard form, use `_add_pwl_constraint_standard!` instead.
 """
-function _add_pwl_constraint!(
+function _add_pwl_constraint_compact!(
     container::OptimizationContainer,
     component::T,
-    ::U,
     break_points::Vector{Float64},
     sos_status::SOSStatusVariable,
     period::Int,
-) where {T <: IS.InfrastructureSystemsComponent, U <: PowerAboveMinimumVariable}
-    variables = get_variable(container, U(), T)
-    const_container = lazy_container_addition!(
-        container,
-        PiecewiseLinearCostConstraint(),
-        T,
-        axes(variables)...,
-    )
-    len_cost_data = length(break_points)
-    jump_model = get_jump_model(container)
-    pwl_vars = get_variable(container, PiecewiseLinearCostVariable(), T)
+    power_var::JuMP.VariableRef,
+    P_min::Float64,
+) where {T <: IS.InfrastructureSystemsComponent}
     name = get_name(component)
+    n_points = length(break_points)
 
+    # Get on-status for compact form (needed for both linking and normalization)
     if sos_status == SOSStatusVariable.NO_VARIABLE
         bin = 1.0
         @debug "Using Piecewise Linear cost function but no variable/parameter ref for ON status is passed. Default status will be set to online (1.0)" _group =
             LOG_GROUP_COST_FUNCTIONS
-
     elseif sos_status == SOSStatusVariable.PARAMETER
         param = get_default_on_parameter(component)
         bin = get_parameter(container, param, T).parameter_array[name, period]
@@ -208,55 +220,41 @@ function _add_pwl_constraint!(
     else
         @assert false
     end
-    P_min = get_active_power_limits(component).min
 
-    const_container[name, period] = JuMP.@constraint(
-        jump_model,
-        bin * P_min + variables[name, period] ==
-        sum(pwl_vars[name, ix, period] * break_points[ix] for ix in 1:len_cost_data)
-    )
+    # Get PWL delta variables
+    pwl_var_container = get_variable(container, PiecewiseLinearCostVariable(), T)
+    pwl_vars = [pwl_var_container[name, i, period] for i in 1:n_points]
 
-    const_normalization_container = lazy_container_addition!(
-        container,
-        PiecewiseLinearCostConstraint(),
-        T,
-        axes(variables)...;
-        meta = "normalization",
-    )
-
-    const_normalization_container[name, period] = JuMP.@constraint(
-        jump_model,
-        sum(pwl_vars[name, i, period] for i in 1:len_cost_data) == bin
-    )
-    return
-end
-
-"""
-Implement the SOS for PWL variables. That is:
-
-```math
-\\{\\delta_{i,t}, ..., \\delta_{k,t}\\} \\in \\text{SOS}_2
-```
-"""
-function _add_pwl_sos_constraint!(
-    container::OptimizationContainer,
-    component::T,
-    ::U,
-    break_points::Vector{Float64},
-    sos_status::SOSStatusVariable,
-    period::Int,
-) where {T <: IS.InfrastructureSystemsComponent, U <: VariableType}
-    name = get_name(component)
-    @warn(
-        "The cost function provided for $(name) is not compatible with a linear PWL cost function.
-  An SOS-2 formulation will be added to the model. This will result in additional binary variables."
-    )
-
+    # Create constraint container if needed
+    if !has_container_key(container, PiecewiseLinearCostConstraint, T)
+        con_key = ConstraintKey(PiecewiseLinearCostConstraint, T)
+        contents = Dict{Tuple{String, Int}, Union{Nothing, JuMP.ConstraintRef}}()
+        _assign_container!(
+            container.constraints,
+            con_key,
+            JuMP.Containers.SparseAxisArray(contents),
+        )
+    end
+    con_container = get_constraint(container, PiecewiseLinearCostConstraint(), T)
     jump_model = get_jump_model(container)
-    pwl_vars = get_variable(container, PiecewiseLinearCostVariable(), T)
-    bp_count = length(break_points)
-    pwl_vars_subset = [pwl_vars[name, i, period] for i in 1:bp_count]
-    JuMP.@constraint(jump_model, pwl_vars_subset in MOI.SOS2(collect(1:bp_count)))
+
+    # Compact form linking constraint includes P_min offset
+    con_container[name, period] = JuMP.@constraint(
+        jump_model,
+        bin * P_min + power_var ==
+        sum(pwl_vars[i] * break_points[i] for i in 1:n_points)
+    )
+
+    # Normalization constraint: sum(pwl_vars) == on_status
+    add_pwl_normalization_constraint!(
+        container,
+        PiecewiseLinearCostNormalizationConstraint,
+        T,
+        name,
+        period,
+        pwl_vars,
+        bin,
+    )
     return
 end
 
@@ -402,15 +400,32 @@ function _add_pwl_term!(
     # Compact PWL data does not exists anymore
 
     cost_is_convex = IS.is_convex(data)
+    if !cost_is_convex
+        @warn(
+            "The cost function provided for $(name) is not compatible with a linear PWL cost function. " *
+            "An SOS-2 formulation will be added to the model. This will result in additional binary variables."
+        )
+    end
     break_points = IS.get_x_coords(data)
     time_steps = get_time_steps(container)
     pwl_cost_expressions = Vector{JuMP.AffExpr}(undef, time_steps[end])
     sos_val = _get_sos_value(container, V, component)
     for t in time_steps
         _add_pwl_variables!(container, T, name, t, data)
-        _add_pwl_constraint!(container, component, U(), break_points, sos_val, t)
+        power_var = get_variable(container, U(), T)[name, t]
+        _add_pwl_constraint_standard!(
+            container,
+            component,
+            break_points,
+            sos_val,
+            t,
+            power_var,
+        )
         if !cost_is_convex
-            _add_pwl_sos_constraint!(container, component, U(), break_points, sos_val, t)
+            pwl_var_container = get_variable(container, PiecewiseLinearCostVariable(), T)
+            n_points = length(break_points)
+            pwl_vars = [pwl_var_container[name, i, t] for i in 1:n_points]
+            add_pwl_sos2_constraint!(container, T, name, t, pwl_vars)
         end
         pwl_cost =
             _get_pwl_cost_expression(container, component, t, cost_function, U(), V())
@@ -539,21 +554,6 @@ function add_variable_cost_to_objective!(
     return
 end
 
-# small helper, not called anywhere outside this file.
-get_fuel_cost_value(
-    container::OptimizationContainer,
-    component::IS.InfrastructureSystemsComponent,
-    time_period::Int,
-    is_time_variant_::Bool,
-) = _lookup_maybe_time_variant_param(
-    container,
-    component,
-    time_period,
-    Val(is_time_variant_),
-    get_fuel_cost, # PSY function: get_fuel_cost(get_cost(comp)) plus validation and scaling.
-    FuelCostParameter(),
-)
-
 """
 Creates piecewise linear cost function using a sum of variables and expression with sign and time step included.
 # Arguments
@@ -565,10 +565,14 @@ Creates piecewise linear cost function using a sum of variables and expression w
 function add_variable_cost_to_objective!(
     container::OptimizationContainer,
     ::T,
-    component::IS.InfrastructureSystemsComponent,
+    component::V,
     cost_function::IS.FuelCurve{IS.PiecewisePointCurve},
     ::U,
-) where {T <: VariableType, U <: AbstractDeviceFormulation}
+) where {
+    T <: VariableType,
+    V <: IS.InfrastructureSystemsComponent,
+    U <: AbstractDeviceFormulation,
+}
     component_name = get_name(component)
     @debug "PWL Variable Cost" _group = LOG_GROUP_COST_FUNCTIONS component_name
     # If array is full of tuples with zeros return 0.0
@@ -585,12 +589,13 @@ function add_variable_cost_to_objective!(
     # IS getter: simply returns the field of the FuelCurve struct
     is_time_variant_ = is_time_variant(IS.get_fuel_cost(cost_function))
     for t in get_time_steps(container)
-        fuel_cost_value = get_fuel_cost_value(
-            container,
-            component,
-            t,
-            is_time_variant_,
-        )
+        fuel_cost_value = if is_time_variant_
+            param = get_parameter_array(container, FuelCostParameter(), V)
+            mult = get_parameter_multiplier_array(container, FuelCostParameter(), V)
+            param[component_name, t] * mult[component_name, t]
+        else
+            get_fuel_cost(component)
+        end
         pwl_cost_expression = pwl_fuel_consumption_expressions[t] * fuel_cost_value
         add_cost_to_expression!(
             container,

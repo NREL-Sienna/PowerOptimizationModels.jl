@@ -1,56 +1,35 @@
-function _add_quadratic_term!(
-    container::OptimizationContainer,
-    ::T,
-    component::U,
-    q_terms::NTuple{2, Float64},
-    expression_multiplier::Float64,
-    time_period::Int,
-) where {T <: VariableType, U <: IS.InfrastructureSystemsComponent}
-    component_name = get_name(component)
-    @debug "$component_name Quadratic Variable Cost" _group = LOG_GROUP_COST_FUNCTIONS component_name
-    var = get_variable(container, T(), U)[component_name, time_period]
-    q_cost_ = var .^ 2 * q_terms[1] + var * q_terms[2]
-    q_cost = q_cost_ * expression_multiplier
-    add_to_objective_invariant_expression!(container, q_cost)
-    return q_cost
-end
-
-# Add proportional terms to objective function and expression
+# Add quadratic cost term to objective and expression
 function _add_quadraticcurve_variable_term_to_model!(
     container::OptimizationContainer,
     ::T,
-    component::IS.InfrastructureSystemsComponent,
+    component::V,
     proportional_term_per_unit::Float64,
     quadratic_term_per_unit::Float64,
     time_period::Int,
-) where {T <: VariableType}
+) where {T <: VariableType, V <: IS.InfrastructureSystemsComponent}
     resolution = get_resolution(container)
     dt = Dates.value(resolution) / MILLISECONDS_IN_HOUR
-    if quadratic_term_per_unit >= eps()
-        cost_term = _add_quadratic_term!(
-            container,
-            T(),
-            component,
-            (quadratic_term_per_unit, proportional_term_per_unit),
-            dt,
-            time_period,
-        )
+    name = get_name(component)
+    var = get_variable(container, T(), V)[name, time_period]
+
+    cost = if quadratic_term_per_unit >= eps()
+        @debug "$name Quadratic Variable Cost" _group = LOG_GROUP_COST_FUNCTIONS name
+        q_cost =
+            (var .^ 2 * quadratic_term_per_unit + var * proportional_term_per_unit) * dt
+        add_to_objective_invariant_expression!(container, q_cost)
+        q_cost
     else
-        cost_term = _add_proportional_term!(
-            container,
-            T(),
-            component,
-            proportional_term_per_unit * dt,
-            time_period,
-        )
+        add_cost_term_invariant!(
+            container, var, proportional_term_per_unit * dt,
+            ProductionCostExpression, V, name, time_period)
     end
-    add_cost_to_expression!(
-        container,
-        ProductionCostExpression,
-        cost_term,
-        component,
-        time_period,
-    )
+
+    # For quadratic case, still need to add to expression (linear case handled by helper)
+    if quadratic_term_per_unit >= eps() &&
+       has_container_key(container, ProductionCostExpression, V)
+        expr = get_expression(container, ProductionCostExpression(), V)
+        JuMP.add_to_expression!(expr[name, time_period], cost)
+    end
     return
 end
 

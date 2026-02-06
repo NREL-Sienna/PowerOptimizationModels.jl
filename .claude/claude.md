@@ -7,9 +7,6 @@ routines for managing power optimization models. Julia compat: `^1.10`.
 
 ## Type and Function Conventions
 
-**Duck-typing over module prefixes:** Use plain function names without module prefixes.
-Prefer `get_name(component)` over `PSY.get_name(component)`.
-
 **Prefer IS types over PSY types:** When possible, use InfrastructureSystems parent types:
 - `PSY.Component` → `IS.InfrastructureSystemsComponent`
 - `PSY.System` → `IS.InfrastructureSystemsContainer`

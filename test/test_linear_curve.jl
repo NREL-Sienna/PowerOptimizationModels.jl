@@ -58,18 +58,23 @@ function setup_container_with_variables(
 end
 
 @testset "Linear Curve Objective Functions" begin
-    @testset "_add_proportional_term! adds to invariant objective" begin
+    @testset "add_cost_term_invariant! adds to invariant objective" begin
         time_steps = 1:3
         device = make_mock_thermal("gen1"; base_power = 100.0)
         container = setup_container_with_variables(time_steps, device)
 
         # Add proportional term for time period 1
-        linear_term = 10.0
-        InfrastructureOptimizationModels._add_proportional_term!(
+        rate = 10.0
+        name = IOM.get_name(device)
+        variable =
+            IOM.get_variable(container, TestActivePowerVariable(), MockThermalGen)[name, 1]
+        IOM.add_cost_term_invariant!(
             container,
-            TestActivePowerVariable(),
-            device,
-            linear_term,
+            variable,
+            rate,
+            TestCostExpression,
+            MockThermalGen,
+            name,
             1,
         )
 
@@ -81,7 +86,7 @@ end
             "gen1",
             1,
         )
-        @test coef ≈ linear_term
+        @test coef ≈ rate
 
         # Other time periods should have zero coefficient
         for t in 2:3
