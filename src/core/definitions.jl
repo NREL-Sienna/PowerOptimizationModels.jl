@@ -39,6 +39,11 @@ const UpDownPair{T} = NamedTuple{(:up, :down), NTuple{2, T}}
 const UpDown = UpDownPair{Float64}  # backwards compatible alias
 const InOut = NamedTuple{(:in, :out), NTuple{2, Float64}}
 
+# Direction types for incremental vs decremental offer curves (market bid cost)
+abstract type OfferDirection end
+struct IncrementalOffer <: OfferDirection end
+struct DecrementalOffer <: OfferDirection end
+
 # Type alias for decision model indices - used for indexing into result stores
 const DecisionModelIndexType = Dates.DateTime
 const EmulationModelIndexType = Int

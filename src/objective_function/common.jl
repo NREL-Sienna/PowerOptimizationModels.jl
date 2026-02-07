@@ -59,37 +59,8 @@ function _add_vom_cost_to_objective!(
 ) where {T <: VariableType, U <: AbstractDeviceFormulation}
     variable_cost_data = variable_cost(op_cost, T(), component, U())
     power_units = PSY.get_power_units(variable_cost_data)
-    vom_cost = PSY.get_vom_cost(variable_cost_data)
-    multiplier = 1.0 # VOM Cost is always positive
-    cost_term = PSY.get_proportional_term(vom_cost)
-    iszero(cost_term) && return
-    base_power = get_model_base_power(container)
-    device_base_power = PSY.get_base_power(component)
-    cost_term_normalized = get_proportional_cost_per_system_unit(
-        cost_term,
-        power_units,
-        base_power,
-        device_base_power,
-    )
-    resolution = get_resolution(container)
-    dt = Dates.value(resolution) / MILLISECONDS_IN_HOUR
-
-    name = PSY.get_name(component)
-    C = typeof(component)
-    rate = cost_term_normalized * multiplier * dt
-
-    for t in get_time_steps(container)
-        variable = get_variable(container, T(), C)[name, t]
-        add_cost_term_invariant!(
-            container,
-            variable,
-            rate,
-            ProductionCostExpression,
-            C,
-            name,
-            t,
-        )
-    end
+    cost_term = PSY.get_proportional_term(PSY.get_vom_cost(variable_cost_data))
+    add_proportional_cost_invariant!(container, T, component, cost_term, power_units)
     return
 end
 

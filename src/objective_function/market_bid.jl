@@ -43,34 +43,38 @@ get_input_offer_curves(
 ################ PWL Parameters  #################
 ##################################################
 
-# Helper functions to manage incremental (false) vs. decremental (true) cases
-get_initial_input_maybe_decremental(::Val{true}, device::PSY.StaticInjection) =
+# Helper functions to manage incremental vs. decremental cases via OfferDirection dispatch
+get_initial_input(::DecrementalOffer, device::PSY.StaticInjection) =
     PSY.get_decremental_initial_input(PSY.get_operation_cost(device))
-get_initial_input_maybe_decremental(::Val{false}, device::PSY.StaticInjection) =
+get_initial_input(::IncrementalOffer, device::PSY.StaticInjection) =
     PSY.get_incremental_initial_input(PSY.get_operation_cost(device))
 
-get_offer_curves_maybe_decremental(::Val{true}, device::PSY.StaticInjection) =
+get_offer_curves(::DecrementalOffer, device::PSY.StaticInjection) =
     get_input_offer_curves(PSY.get_operation_cost(device))
-get_offer_curves_maybe_decremental(::Val{false}, device::PSY.StaticInjection) =
+get_offer_curves(::IncrementalOffer, device::PSY.StaticInjection) =
     get_output_offer_curves(PSY.get_operation_cost(device))
 
-# Dictionaries to handle more incremental (false) vs. decremental (true) cases
-const _SLOPE_PARAMS::Dict{Bool, Type{<:AbstractPiecewiseLinearSlopeParameter}} = Dict(
-    false => IncrementalPiecewiseLinearSlopeParameter,
-    true => DecrementalPiecewiseLinearSlopeParameter)
-const _BREAKPOINT_PARAMS::Dict{Bool, Type{<:AbstractPiecewiseLinearBreakpointParameter}} =
-    Dict(
-        false => IncrementalPiecewiseLinearBreakpointParameter,
-        true => DecrementalPiecewiseLinearBreakpointParameter)
-const _PIECEWISE_BLOCK_VARS::Dict{Bool, Type{<:AbstractPiecewiseLinearBlockOffer}} = Dict(
-    false => PiecewiseLinearBlockIncrementalOffer,
-    true => PiecewiseLinearBlockDecrementalOffer)
-const _PIECEWISE_BLOCK_CONSTRAINTS::Dict{
-    Bool,
-    Type{<:AbstractPiecewiseLinearBlockOfferConstraint},
-} = Dict(
-    false => PiecewiseLinearBlockIncrementalOfferConstraint,
-    true => PiecewiseLinearBlockDecrementalOfferConstraint)
+# Overloads that accept cost object directly (used by VOM cost path)
+get_offer_curves(::DecrementalOffer, op_cost::PSY.OfferCurveCost) =
+    get_input_offer_curves(op_cost)
+get_offer_curves(::IncrementalOffer, op_cost::PSY.OfferCurveCost) =
+    get_output_offer_curves(op_cost)
+
+# Type dispatch to map OfferDirection to the appropriate parameter/variable/constraint types
+_slope_param(::IncrementalOffer) = IncrementalPiecewiseLinearSlopeParameter
+_slope_param(::DecrementalOffer) = DecrementalPiecewiseLinearSlopeParameter
+
+_breakpoint_param(::IncrementalOffer) = IncrementalPiecewiseLinearBreakpointParameter
+_breakpoint_param(::DecrementalOffer) = DecrementalPiecewiseLinearBreakpointParameter
+
+_block_offer_var(::IncrementalOffer) = PiecewiseLinearBlockIncrementalOffer
+_block_offer_var(::DecrementalOffer) = PiecewiseLinearBlockDecrementalOffer
+
+_block_offer_constraint(::IncrementalOffer) = PiecewiseLinearBlockIncrementalOfferConstraint
+_block_offer_constraint(::DecrementalOffer) = PiecewiseLinearBlockDecrementalOfferConstraint
+
+_objective_sign(::IncrementalOffer) = OBJECTIVE_FUNCTION_POSITIVE
+_objective_sign(::DecrementalOffer) = OBJECTIVE_FUNCTION_NEGATIVE
 
 # Determines whether we care about various types of costs, given the formulation
 # NOTE: currently works based on what has already been added to the container;
@@ -156,12 +160,14 @@ _has_parameter_time_series(
     _has_offer_curve_cost(device) &&
     is_time_variant(_get_parameter_field(T(), PSY.get_operation_cost(device)))
 
-function validate_initial_input_time_series(device::PSY.StaticInjection, decremental::Bool)
-    initial_input = get_initial_input_maybe_decremental(Val(decremental), device)
+function validate_initial_input_time_series(
+    device::PSY.StaticInjection,
+    dir::OfferDirection,
+)
+    initial_input = get_initial_input(dir, device)
     initial_is_ts = is_time_variant(initial_input)
-    variable_is_ts = is_time_variant(
-        get_offer_curves_maybe_decremental(Val(decremental), device))
-    label = decremental ? "decremental" : "incremental"
+    variable_is_ts = is_time_variant(get_offer_curves(dir, device))
+    label = dir isa DecrementalOffer ? "decremental" : "incremental"
 
     (initial_is_ts && !variable_is_ts) &&
         @warn "In `MarketBidCost` for $(get_name(device)), found time series for `$(label)_initial_input` but non-time-series `$(label)_offer_curves`; will ignore `initial_input` of `$(label)_offer_curves"
@@ -183,8 +189,8 @@ function validate_initial_input_time_series(device::PSY.StaticInjection, decreme
     end
 end
 
-function validate_occ_breakpoints_slopes(device::PSY.StaticInjection, decremental::Bool)
-    offer_curves = get_offer_curves_maybe_decremental(Val(decremental), device)
+function validate_occ_breakpoints_slopes(device::PSY.StaticInjection, dir::OfferDirection)
+    offer_curves = get_offer_curves(dir, device)
     device_name = get_name(device)
     is_ts = is_time_variant(offer_curves)
     expected_type = if is_ts
@@ -194,9 +200,9 @@ function validate_occ_breakpoints_slopes(device::PSY.StaticInjection, decrementa
     end
     p1 = nothing
     apply_maybe_across_time_series(device, offer_curves) do x
-        curve_type = decremental ? "decremental" : "incremental"
+        curve_type = dir isa DecrementalOffer ? "decremental" : "incremental"
         _validate_eltype(expected_type, device, x, " $curve_type offer curves")
-        if decremental
+        if dir isa DecrementalOffer
             PSY.is_concave(x) ||
                 throw(
                     ArgumentError(
@@ -215,7 +221,7 @@ function validate_occ_breakpoints_slopes(device::PSY.StaticInjection, decrementa
         # Different specific validations for MBC versus IEC
         p1 = _validate_occ_subtype(
             PSY.get_operation_cost(device),
-            decremental,
+            dir,
             is_ts,
             x,
             device_name,
@@ -226,7 +232,7 @@ end
 
 function _validate_occ_subtype(
     ::PSY.MarketBidCost,
-    decremental,
+    dir::OfferDirection,
     is_ts,
     curve::PSY.PiecewiseStepData,
     device_name::String,
@@ -248,7 +254,7 @@ end
 
 _validate_occ_subtype(
     ::PSY.MarketBidCost,
-    decremental,
+    dir::OfferDirection,
     is_ts,
     ::PSY.CostCurve,
     args...,
@@ -257,7 +263,7 @@ _validate_occ_subtype(
 
 function _validate_occ_subtype(
     cost::PSY.ImportExportCost,
-    decremental,
+    dir::OfferDirection,
     is_ts,
     curve::PSY.CostCurve,
     args...,
@@ -275,12 +281,12 @@ function _validate_occ_subtype(
             "For ImportExportCost, initial input must be zero.",
         ),
     )
-    _validate_occ_subtype(cost, decremental, true, PSY.get_function_data(vc))  # also do the FunctionData validations
+    _validate_occ_subtype(cost, dir, true, PSY.get_function_data(vc))  # also do the FunctionData validations
 end
 
 function _validate_occ_subtype(
     ::PSY.ImportExportCost,
-    decremental,
+    dir::OfferDirection,
     is_ts,
     curve::PSY.PiecewiseStepData,
     args...,
@@ -407,25 +413,23 @@ end
 validate_occ_component(
     ::IncrementalCostAtMinParameter,
     device::PSY.StaticInjection,
-) =
-    validate_initial_input_time_series(device, false)
+) = validate_initial_input_time_series(device, IncrementalOffer())
+
 validate_occ_component(
     ::DecrementalCostAtMinParameter,
     device::PSY.StaticInjection,
-) =
-    validate_initial_input_time_series(device, true)
+) = validate_initial_input_time_series(device, DecrementalOffer())
 
 # Validate convexity/concavity of cost curves as appropriate, verify P1 = min gen power
 validate_occ_component(
     ::IncrementalPiecewiseLinearBreakpointParameter,
     device::PSY.StaticInjection,
-) =
-    validate_occ_breakpoints_slopes(device, false)
+) = validate_occ_breakpoints_slopes(device, IncrementalOffer())
+
 validate_occ_component(
     ::DecrementalPiecewiseLinearBreakpointParameter,
     device::PSY.StaticInjection,
-) =
-    validate_occ_breakpoints_slopes(device, true)
+) = validate_occ_breakpoints_slopes(device, DecrementalOffer())
 
 # Slope and breakpoint validations are done together, nothing to do here
 validate_occ_component(
@@ -510,36 +514,6 @@ function process_market_bid_parameters!(
 end
 
 ##################################################
-################# PWL Variables ##################
-##################################################
-
-# For Market Bid
-function _add_pwl_variables!(
-    container::OptimizationContainer,
-    ::Type{T},
-    component_name::String,
-    time_period::Int,
-    n_tranches::Int,
-    ::Type{U},
-) where {
-    T <: PSY.Component,
-    U <: AbstractPiecewiseLinearBlockOffer,
-}
-    var_container = lazy_container_addition!(container, U(), T)
-    # length(PiecewiseStepData) gets number of segments, here we want number of points
-    pwlvars = Array{JuMP.VariableRef}(undef, n_tranches)
-    for i in 1:n_tranches
-        pwlvars[i] =
-            var_container[(component_name, i, time_period)] = JuMP.@variable(
-                get_jump_model(container),
-                base_name = "$(nameof(U))_$(component_name)_{pwl_$(i), $time_period}",
-                lower_bound = 0.0,
-            )
-    end
-    return pwlvars
-end
-
-##################################################
 ################# PWL Constraints ################
 ##################################################
 
@@ -620,12 +594,11 @@ function _add_pwl_constraint!(
     ::U,
     ::D,
     break_points::Vector{<:JuMPOrFloat},
+    pwl_vars::Vector{JuMP.VariableRef},
     period::Int,
-    ::Type{V},
     ::Type{W},
 ) where {T <: PSY.Component, U <: VariableType,
     D <: AbstractDeviceFormulation,
-    V <: AbstractPiecewiseLinearBlockOffer,
     W <: AbstractPiecewiseLinearBlockOfferConstraint}
     variables = get_variable(container, U(), T)
     const_container = lazy_container_addition!(
@@ -634,35 +607,33 @@ function _add_pwl_constraint!(
         T,
         axes(variables)...,
     )
-    len_cost_data = length(break_points) - 1
-    jump_model = get_jump_model(container)
-    pwl_vars = get_variable(container, V(), T)
     name = PSY.get_name(component)
-    sum_pwl_vars = sum(pwl_vars[name, ix, period] for ix in 1:len_cost_data)
 
+    # Device-specific: compute min_power_offset
     # As detailed in https://github.com/NREL-Sienna/InfrastructureOptimizationModels.jl/issues/1318,
     # time-variable P1 is problematic, so for now we require P1 to be constant. Thus we can
     # just look up what it is currently fixed to and use that here without worrying about
     # updating.
-    if _include_constant_min_gen_power_in_constraint(component, U(), D())
-        sum_pwl_vars += jump_fixed_value(first(break_points))::Float64
+    min_power_offset = if _include_constant_min_gen_power_in_constraint(component, U(), D())
+        jump_fixed_value(first(break_points))::Float64
     elseif _include_min_gen_power_in_constraint(component, U(), D())
-        on_vars = get_variable(container, OnVariable(), T)
         p1::Float64 = jump_fixed_value(first(break_points))
-        sum_pwl_vars += p1 * on_vars[name, period]
+        on_vars = get_variable(container, OnVariable(), T)
+        p1 * on_vars[name, period]
+    else
+        0.0
     end
 
-    const_container[name, period] = JuMP.@constraint(
-        jump_model,
-        variables[name, period] == sum_pwl_vars
+    add_pwl_block_offer_constraints!(
+        get_jump_model(container),
+        const_container,
+        name,
+        period,
+        variables[name, period],
+        pwl_vars,
+        break_points,
+        min_power_offset,
     )
-
-    for ix in 1:len_cost_data
-        JuMP.@constraint(
-            jump_model,
-            pwl_vars[name, ix, period] <= break_points[ix + 1] - break_points[ix]
-        )
-    end
     return
 end
 
@@ -679,7 +650,7 @@ function _add_pwl_constraint!(
     component::T,
     ::U,
     break_points::Vector{Float64},
-    sos_status::SOSStatusVariable,
+    pwl_vars::Vector{JuMP.VariableRef},
     period::Int,
 ) where {T <: PSY.ReserveDemandCurve, U <: ServiceRequirementVariable}
     name = PSY.get_name(component)
@@ -691,90 +662,16 @@ function _add_pwl_constraint!(
         axes(variables)...;
         meta = name,
     )
-    len_cost_data = length(break_points) - 1
-    jump_model = get_jump_model(container)
-    pwl_vars = get_variable(container, PiecewiseLinearBlockIncrementalOffer(), T)
-    const_container[name, period] = JuMP.@constraint(
-        jump_model,
-        variables[name, period] ==
-        sum(pwl_vars[name, ix, period] for ix in 1:len_cost_data)
+    add_pwl_block_offer_constraints!(
+        get_jump_model(container),
+        const_container,
+        name,
+        period,
+        variables[name, period],
+        pwl_vars,
+        break_points,
     )
-
-    for ix in 1:len_cost_data
-        JuMP.@constraint(
-            jump_model,
-            pwl_vars[name, ix, period] <= break_points[ix + 1] - break_points[ix]
-        )
-    end
     return
-end
-
-##################################################
-################ PWL Expressions #################
-##################################################
-
-get_offer_curves_for_var(var, comp::PSY.Component) =
-    get_offer_curves_for_var(var, get_operation_cost(comp))
-get_offer_curves_for_var(::PiecewiseLinearBlockIncrementalOffer, cost::PSY.MarketBidCost) =
-    get_offer_curves_maybe_decremental(Val(false), cost)
-get_offer_curves_for_var(::PiecewiseLinearBlockDecrementalOffer, cost::PSY.MarketBidCost) =
-    get_offer_curves_maybe_decremental(Val(true), cost)
-
-get_multiplier_for_var(::PiecewiseLinearBlockIncrementalOffer) = OBJECTIVE_FUNCTION_POSITIVE
-get_multiplier_for_var(::PiecewiseLinearBlockDecrementalOffer) = OBJECTIVE_FUNCTION_NEGATIVE
-
-function _get_pwl_cost_expression(
-    container::OptimizationContainer,
-    component::T,
-    time_period::Int,
-    slopes_normalized::Vector{Float64},
-    ::U,
-    ::V,
-    ::W,
-) where {
-    T <: PSY.Component,
-    U <: VariableType,
-    V <: AbstractDeviceFormulation,
-    W <: AbstractPiecewiseLinearBlockOffer,
-}
-    resolution = get_resolution(container)
-    dt = Dates.value(resolution) / MILLISECONDS_IN_HOUR
-    multiplier = get_multiplier_for_var(W()) * dt
-
-    name = PSY.get_name(component)
-    pwl_var_container = get_variable(container, W(), T)
-    gen_cost = JuMP.AffExpr(0.0)
-    for (i, cost) in enumerate(slopes_normalized)
-        JuMP.add_to_expression!(
-            gen_cost,
-            (cost * multiplier),
-            pwl_var_container[(name, i, time_period)],
-        )
-    end
-    return gen_cost
-end
-
-"""
-Get cost expression for StepwiseCostReserve
-"""
-function _get_pwl_cost_expression(
-    container::OptimizationContainer,
-    component::T,
-    time_period::Int,
-    slopes_normalized::Vector{Float64},
-    multiplier::Float64,
-) where {T <: PSY.ReserveDemandCurve}
-    name = PSY.get_name(component)
-    pwl_var_container = get_variable(container, PiecewiseLinearBlockIncrementalOffer(), T)
-    ordc_cost = JuMP.AffExpr(0.0)
-    for (i, slope) in enumerate(slopes_normalized)
-        JuMP.add_to_expression!(
-            ordc_cost,
-            slope * multiplier,
-            pwl_var_container[(name, i, time_period)],
-        )
-    end
-    return ordc_cost
 end
 
 ###############################################
@@ -783,17 +680,17 @@ end
 
 # Serves a similar role as _lookup_maybe_time_variant_param, but needs extra logic
 function _get_pwl_data(
-    is_decremental::Bool,
+    dir::OfferDirection,
     container::OptimizationContainer,
     component::T,
     time::Int,
 ) where {T <: PSY.Component}
-    cost_data = get_offer_curves_maybe_decremental(Val(is_decremental), component)
+    cost_data = get_offer_curves(dir, component)
 
     if is_time_variant(cost_data)
         name = PSY.get_name(component)
 
-        SlopeParam = _SLOPE_PARAMS[is_decremental]
+        SlopeParam = _slope_param(dir)
         slope_param_arr = get_parameter_array(container, SlopeParam(), T)
         slope_param_mult = get_parameter_multiplier_array(container, SlopeParam(), T)
         @assert size(slope_param_arr) == size(slope_param_mult)  # multiplier arrays should be 3D too
@@ -801,7 +698,7 @@ function _get_pwl_data(
             slope_param_arr[name, :, time] .* slope_param_mult[name, :, time]
         slope_cost_component = slope_cost_component.data
 
-        BreakpointParam = _BREAKPOINT_PARAMS[is_decremental]
+        BreakpointParam = _breakpoint_param(dir)
         breakpoint_param_container = get_parameter(container, BreakpointParam(), T)
         breakpoint_param_arr = get_parameter_column_refs(breakpoint_param_container, name)  # performs component -> time series many-to-one mapping
         breakpoint_param_mult = get_multiplier_array(breakpoint_param_container)
@@ -836,41 +733,35 @@ Add PWL cost terms for data coming from the MarketBidCost
 with a fixed incremental offer curve
 """
 function add_pwl_term!(
-    is_decremental::Bool,
+    dir::OfferDirection,
     container::OptimizationContainer,
     component::T,
     ::PSY.OfferCurveCost,
     ::U,
     ::V,
 ) where {T <: PSY.Component, U <: VariableType, V <: AbstractDeviceFormulation}
-    name = PSY.get_name(component)
-    W = _PIECEWISE_BLOCK_VARS[is_decremental]
-    X = _PIECEWISE_BLOCK_CONSTRAINTS[is_decremental]
+    W = _block_offer_var(dir)
+    X = _block_offer_constraint(dir)
 
     name = PSY.get_name(component)
+    resolution = get_resolution(container)
+    dt = Dates.value(resolution) / MILLISECONDS_IN_HOUR
     time_steps = get_time_steps(container)
     for t in time_steps
-        breakpoints, slopes = _get_pwl_data(is_decremental, container, component, t)
-        _add_pwl_variables!(container, T, name, t, length(slopes), W)
+        breakpoints, slopes = _get_pwl_data(dir, container, component, t)
+        pwl_vars =
+            add_pwl_variables!(container, W, T, name, t, length(slopes); upper_bound = Inf)
         _add_pwl_constraint!(
             container,
             component,
             U(),
             V(),
             breakpoints,
+            pwl_vars,
             t,
-            W,
             X,
         )
-        pwl_cost = _get_pwl_cost_expression(
-            container,
-            component,
-            t,
-            slopes,
-            U(),
-            V(),
-            W(),
-        )
+        pwl_cost = get_pwl_cost_expression(pwl_vars, slopes, _objective_sign(dir) * dt)
 
         add_cost_to_expression!(
             container,
@@ -880,9 +771,7 @@ function add_pwl_term!(
             t,
         )
 
-        if is_time_variant(
-            get_offer_curves_maybe_decremental(Val(is_decremental), component),
-        )
+        if is_time_variant(get_offer_curves(dir, component))
             add_to_objective_variant_expression!(container, pwl_cost)
         else
             add_to_objective_invariant_expression!(container, pwl_cost)
@@ -919,26 +808,20 @@ function _add_pwl_term!(
     name = PSY.get_name(component)
     time_steps = get_time_steps(container)
     pwl_cost_expressions = Vector{JuMP.AffExpr}(undef, time_steps[end])
-    sos_val = _get_sos_value(container, V, component)
+    slopes = IS.get_y_coords(data)
+    break_points = PSY.get_x_coords(data)
     for t in time_steps
-        break_points = PSY.get_x_coords(data)
-        _add_pwl_variables!(
+        pwl_vars = add_pwl_variables!(
             container,
+            PiecewiseLinearBlockIncrementalOffer,
             T,
             name,
             t,
-            length(IS.get_y_coords(data)),
-            PiecewiseLinearBlockIncrementalOffer,
+            length(slopes);
+            upper_bound = Inf,
         )
-        _add_pwl_constraint!(container, component, U(), break_points, sos_val, t)
-        pwl_cost = _get_pwl_cost_expression(
-            container,
-            component,
-            t,
-            IS.get_y_coords(data),
-            multiplier * dt,
-        )
-        pwl_cost_expressions[t] = pwl_cost
+        _add_pwl_constraint!(container, component, U(), break_points, pwl_vars, t)
+        pwl_cost_expressions[t] = get_pwl_cost_expression(pwl_vars, slopes, multiplier * dt)
     end
     return pwl_cost_expressions
 end
@@ -947,6 +830,7 @@ end
 ######## MarketBidCost: PiecewiseIncrementalCurve ##########
 ############################################################
 
+# see also the 2 commented-out definitions in import_export.jl
 """
 Creates piecewise linear market bid function using a sum of variables and expression for market participants.
 Decremental offers are not accepted for most components, except Storage systems and loads.
@@ -971,7 +855,7 @@ function add_variable_cost_to_objective!(
         error("Component $(component_name) is not allowed to participate as a demand.")
     end
     add_pwl_term!(
-        false,
+        IncrementalOffer(),
         container,
         component,
         cost_function,
@@ -981,6 +865,7 @@ function add_variable_cost_to_objective!(
     return
 end
 
+# load formulation: decremental offers only
 function add_variable_cost_to_objective!(
     container::OptimizationContainer,
     ::T,
@@ -995,7 +880,7 @@ function add_variable_cost_to_objective!(
         error("Component $(component_name) is not allowed to participate as a supply.")
     end
     add_pwl_term!(
-        true,
+        DecrementalOffer(),
         container,
         component,
         cost_function,
@@ -1005,50 +890,10 @@ function add_variable_cost_to_objective!(
     return
 end
 
-# TODO not actually called anywhere?!!
-#=
-function _add_service_bid_cost!(
-    container::OptimizationContainer,
-    component::PSY.Component,
-    service::T,
-) where {T <: PSY.Reserve{<:PSY.ReserveDirection}}
-    time_steps = get_time_steps(container)
-    initial_time = get_initial_time(container)
-    base_power = get_model_base_power(container)
-    forecast_data = PSY.get_services_bid(
-        component,
-        PSY.get_operation_cost(component),
-        service;
-        start_time = initial_time,
-        len = length(time_steps),
-    )
-    forecast_data_values = PSY.get_cost.(TimeSeries.values(forecast_data))
-    # Single Price Bid
-    if eltype(forecast_data_values) == Float64
-        data_values = forecast_data_values
-        # Single Price/Quantity Bid
-    elseif eltype(forecast_data_values) == Vector{NTuple{2, Float64}}
-        data_values = [v[1][1] for v in forecast_data_values]
-    else
-        error("$(eltype(forecast_data_values)) not supported for MarketBidCost")
-    end
+# Map formulation type to offer direction for VOM cost dispatch
+_vom_offer_direction(::AbstractDeviceFormulation) = IncrementalOffer()
+_vom_offer_direction(::AbstractControllablePowerLoadFormulation) = DecrementalOffer()
 
-    reserve_variable =
-        get_variable(container, ActivePowerReserveVariable(), T, PSY.get_name(service))
-    component_name = PSY.get_name(component)
-    for t in time_steps
-        add_to_objective_invariant_expression!(
-            container,
-            data_values[t] * base_power * reserve_variable[component_name, t],
-        )
-    end
-    return
-end
-
-function _add_service_bid_cost!(::OptimizationContainer, ::PSY.Component, ::PSY.Service) end
-=#
-
-# "copy-paste and change incremental to decremental" here. Refactor?
 function _add_vom_cost_to_objective!(
     container::OptimizationContainer,
     ::T,
@@ -1056,71 +901,28 @@ function _add_vom_cost_to_objective!(
     op_cost::PSY.OfferCurveCost,
     ::U,
 ) where {T <: VariableType, U <: AbstractDeviceFormulation}
-    incremental_cost_curves = get_output_offer_curves(op_cost)
-    if is_time_variant(incremental_cost_curves)
+    dir = _vom_offer_direction(U())
+    cost_curves = get_offer_curves(dir, op_cost)
+    if is_time_variant(cost_curves)
         # TODO this might imply a change to the MBC struct?
-        @warn "Incremental curves are time variant, there is no VOM cost source. Skipping VOM cost."
+        @warn "$(typeof(dir)) curves are time variant, there is no VOM cost source. Skipping VOM cost."
         return
     end
     _add_vom_cost_to_objective_helper!(
-        container,
-        T(),
-        component,
-        op_cost,
-        incremental_cost_curves,
-        U(),
-    )
-    return
-end
-
-function _add_vom_cost_to_objective!(
-    container::OptimizationContainer,
-    ::T,
-    component::PSY.Component,
-    op_cost::PSY.OfferCurveCost,
-    ::U,
-) where {T <: VariableType,
-    U <: AbstractControllablePowerLoadFormulation}
-    decremental_cost_curves = get_input_offer_curves(op_cost)
-    if is_time_variant(decremental_cost_curves)
-        # TODO this might imply a change to the MBC struct?
-        @warn "Decremental curves are time variant, there is no VOM cost source. Skipping VOM cost."
-        return
-    end
-    _add_vom_cost_to_objective_helper!(
-        container,
-        T(),
-        component,
-        op_cost,
-        decremental_cost_curves,
-        U(),
-    )
+        container, T(), component, op_cost, cost_curves, U())
     return
 end
 
 function _add_vom_cost_to_objective_helper!(
     container::OptimizationContainer,
     ::T,
-    component::C,
+    component::PSY.Component,
     ::PSY.OfferCurveCost,
     cost_data::PSY.CostCurve{PSY.PiecewiseIncrementalCurve},
     ::U,
-) where {T <: VariableType, C <: PSY.Component, U <: AbstractDeviceFormulation}
+) where {T <: VariableType, U <: AbstractDeviceFormulation}
     power_units = PSY.get_power_units(cost_data)
-    vom_cost = PSY.get_vom_cost(cost_data)
-    multiplier = 1.0 # VOM Cost is always positive
-    cost_term = PSY.get_proportional_term(vom_cost)
-    iszero(cost_term) && return
-    base_power = get_model_base_power(container)
-    device_base_power = PSY.get_base_power(component)
-    cost_term_normalized = get_proportional_cost_per_system_unit(
-        cost_term, power_units, base_power, device_base_power)
-    name = get_name(component)
-    rate = cost_term_normalized * multiplier
-    for t in get_time_steps(container)
-        variable = get_variable(container, T(), C)[name, t]
-        add_cost_term_invariant!(
-            container, variable, rate, ProductionCostExpression, C, name, t)
-    end
+    cost_term = PSY.get_proportional_term(PSY.get_vom_cost(cost_data))
+    add_proportional_cost_invariant!(container, T, component, cost_term, power_units)
     return
 end
