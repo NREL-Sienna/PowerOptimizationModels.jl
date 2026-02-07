@@ -224,7 +224,7 @@ export add_pwl_linking_constraint!
 export add_pwl_normalization_constraint!
 export add_pwl_sos2_constraint!
 export get_pwl_cost_expression
-export objective_function!
+export add_to_objective_function!
 export initial_condition_variable
 export initial_condition_default
 export process_market_bid_parameters!

@@ -42,11 +42,11 @@ end
 ###### add_foo functions ######
 ###############################
 
-# not add_foo, but might as well be called add_to_objective_function!.
+# previously called objective_function!, but renamed to be more consistent with others.
 """
 Add objective function contributions for devices.
 """
-function objective_function!(
+function add_to_objective_function!(
     ::OptimizationContainer,
     ::Union{Vector{U}, IS.FlattenIteratorWrapper{U}},
     ::DeviceModel{U, F},
